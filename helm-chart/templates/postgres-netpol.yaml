@@ -1,0 +1,20 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Values.postgres.name }}-netpol
+  namespace: {{ .Values.namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app: {{ .Values.postgres.components }}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: {{ .Values.back.components }}
+    - podSelector:
+        matchLabels:
+          app: {{ .Values.postgres.migration.components }}

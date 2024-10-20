@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.redis.name }}-deployment
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.redis.components }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.redis.components }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.redis.components }}
+    spec:
+      containers:
+        - name: {{ .Values.redis.name }}
+          image: "{{ .Values.redis.image }}:{{ .Values.redis.version }}"
+          args: ['/usr/local/etc/redis/redis.conf']
+          volumeMounts:
+            - name: config
+              mountPath: /usr/local/etc/redis/redis.conf
+              readOnly: true
+              subPath: redis.conf
+            - name: redis-persistent-storage
+              mountPath: /data/redis
+          ports:
+            - containerPort: {{ .Values.redis.containerPort }}
+          resources:
+            limits:
+              cpu: '1000m'
+              memory: '2000Mi'
+            requests:
+              cpu: '1000m'
+              memory: '2000Mi'
+      volumes:
+        - name: config
+          configMap:
+            defaultMode: 0666
+            name: {{ .Values.redis.name }}-configmap
+        - name: redis-persistent-storage
+          persistentVolumeClaim:
+            claimName: {{ .Values.redis.name }}-pvc

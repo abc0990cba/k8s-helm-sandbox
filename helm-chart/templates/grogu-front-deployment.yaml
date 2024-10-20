@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.front.name }}-deployment
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.front.components }}
+  replicas: {{ .Values.front.replicas }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.front.components }}
+    spec:
+      containers:
+      - name: {{ .Values.front.name }}
+        image: "{{ .Values.front.image }}:{{ .Values.front.version }}"
+        ports:
+        - containerPort: {{ .Values.front.containerPort }}
+        resources:
+          limits: {{ .Values.front.limits | toYaml | nindent 14 }}

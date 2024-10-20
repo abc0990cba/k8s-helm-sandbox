@@ -1,0 +1,173 @@
+{
+  "version": 3,
+  "name": "KrakenD on k8s",
+  "port": 8081,
+  "cache_ttl": "3600s",
+  "timeout": "3s",
+  "host": [
+    "https://jsonplaceholder.typicode.com"
+  ],
+  "extra_config": {
+    "router": {
+      "auto_options": true
+    },
+    "security/cors": {
+      "allow_origins": [
+        "http://grogu.test"
+      ],
+      "allow_methods": [
+        "GET",
+        "HEAD",
+        "POST",
+        "OPTIONS"
+      ],
+      "expose_headers": [
+        "Content-Length",
+        "Content-Type",
+        "Authorization"
+      ],
+      "allow_headers": [
+        "Origin",
+        "Authorization",
+        "Content-Type",
+        "Cache-Control",
+        "Pragma",
+        "Accept-Language"
+      ],
+      "max_age": "12h",
+      "allow_credentials": true,
+      "debug": true
+    }
+  },
+  "endpoints": [
+    {
+      "endpoint": "/supu",
+      "backend": [
+        {
+          "host": [
+            "http://krakend-service:8000"
+          ],
+          "url_pattern": "/__debug/supu"
+        }
+      ]
+    },
+    {
+      "endpoint": "/combination/{id}",
+      "backend": [
+        {
+          "url_pattern": "/posts?userId={id}",
+          "is_collection": true,
+          "mapping": {
+            "collection": "posts"
+          }
+        },
+        {
+          "url_pattern": "/users/{id}",
+          "mapping": {
+            "email": "personal_email"
+          }
+        }
+      ]
+    },
+    {
+      "endpoint": "/api",
+      "backend": [
+        {
+          "host": [
+            "http://fake-api:8080"
+          ],
+          "url_pattern": "/"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/ready",
+      "backend": [
+        {
+          "host": [
+            "http://fake-api:8080"
+          ],
+          "url_pattern": "/ready",
+          "disable_host_sanitize": false,
+          "encoding": "json",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "endpoint": "/v1/svc1/hello",
+      "extra_config": {
+        "auth/validator": {
+            "alg": "RS256",
+            "jwk_url": "http://auth.test/realms/myrealm/protocol/openid-connect/certs",
+            "disable_jwk_security": true
+        }
+      },
+      "backend": [
+        {
+          "host": [
+            "http://krakend-service:8000"
+          ],
+          "url_pattern": "/__debug/supu"
+        }
+      ]
+    },
+    {
+      "endpoint": "/v1/values",
+      "extra_config": {
+        "auth/validator": {
+          "operation_debug": true,
+            "alg": "RS256",
+            "jwk_url": "http://keycloak-auth-clusterip:8080/realms/myrealm/protocol/openid-connect/certs",
+            "disable_jwk_security": true
+        }
+    },
+      "backend": [
+        {
+          "host": [
+            "http://grogu-back-clusterip:9070"
+          ],
+          "is_collection": true,
+          "url_pattern": "/values",
+          "mapping": {
+            "collection": "data"
+          }
+        }
+      ]
+    },
+    {
+      "endpoint": "/v1/will",
+      "extra_config": {
+        "auth/validator": {
+            "operation_debug": true,
+            "alg": "RS256",
+            "jwk_url": "http://keycloak-auth-clusterip:8080/realms/myrealm/protocol/openid-connect/certs",
+            "disable_jwk_security": true
+        }
+      },
+      "backend": [
+        {
+          "host": [
+            "http://grogu-back-clusterip:9070"
+          ],
+          "url_pattern": "/will"
+        }
+      ]
+    },
+    {
+      "endpoint": "/v1/open",
+      "backend": [
+        {
+          "host": [
+            "http://grogu-back-clusterip:9070"
+          ],
+          "is_collection": true,
+          "url_pattern": "/values",
+          "mapping": {
+            "collection": "data"
+          }
+        }
+      ]
+    }
+  ]
+}

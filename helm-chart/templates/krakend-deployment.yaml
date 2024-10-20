@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.gateway.name }}-deployment
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.gateway.components }}
+  replicas: {{ .Values.gateway.replicas }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.gateway.components }}
+    spec:
+      containers:
+      - name: {{ .Values.gateway.name }}
+        image: "{{ .Values.gateway.image }}:{{ .Values.gateway.version }}"
+        ports:
+        - containerPort: {{ .Values.back.containerPort }}
+        resources:
+          limits: {{ .Values.gateway.limits | toYaml | nindent 14 }}
+        command: [ "/usr/bin/krakend" ]
+        args: [ "run", "-d", "-c", "/etc/krakend/krakend.json", "-p", {{ .Values.gateway.containerPort | quote }} ]
+        readinessProbe:
+          httpGet:
+            path: /v1/open
+            port: {{ .Values.gateway.containerPort }}

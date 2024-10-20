@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.redis.name }}-configmap
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.redis.name }}-components

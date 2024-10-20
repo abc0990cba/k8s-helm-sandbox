@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.auth.name }}-deployment
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.auth.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.auth.components }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.auth.components }}
+    spec:
+      containers:
+        - name: {{ .Values.auth.name }}
+          image: "{{ .Values.auth.image }}:{{ .Values.auth.version }}"
+          args: ["start-dev", "--import-realm"]
+          env:
+            - name: KEYCLOAK_ADMIN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.name }}-secret
+                  key: KEYCLOAK_ADMIN
+            - name: KEYCLOAK_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.name }}-secret
+                  key: KEYCLOAK_ADMIN_PASSWORD
+            - name: DB_VENDOR
+              value: "postgres"
+            - name: DB_ADDR
+              value: {{ .Values.postgres.name }}-clusterip
+            - name: DB_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.name }}-secret
+                  key: POSTGRES_PORT
+            - name: DB_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.name }}-secret
+                  key: POSTGRES_DB
+            - name: DB_SCHEMA
+              value: "public"
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.name }}-secret
+                  key: POSTGRES_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.name }}-secret
+                  key: POSTGRES_PASSWORD
+          ports:
+            - name: http
+              containerPort: {{ .Values.auth.containerPort }}
+          resources:
+            limits: {{ .Values.auth.limits | toYaml | nindent 16 }}
+          volumeMounts:
+            - name: {{ .Values.auth.realm.file.name }}-volume
+              mountPath: "/opt/keycloak/data/import"
+          readinessProbe:
+            httpGet:
+              path: /realms/master
+              port: {{ .Values.auth.containerPort }}
+      volumes:
+        - name: {{ .Values.auth.realm.file.name }}-volume
+          configMap:
+            name: {{ .Values.auth.name }}-configmap
+            items:
+            - key: {{ .Values.auth.realm.file.name }}.json
+              path: {{ .Values.auth.realm.file.name }}.json 

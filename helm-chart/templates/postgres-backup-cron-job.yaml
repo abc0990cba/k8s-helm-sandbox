@@ -1,0 +1,45 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Values.postgres.name }}-backup-cron-job
+  namespace: {{ .Values.namespace }}
+spec:
+  schedule: "@daily"
+  # https://edwardbeazer.com/postgres-kubernetes-backup-cron-job-and-restore/
+  # schedule: "*/2 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 0
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 600
+      template:
+        metadata:
+          labels:
+            app: {{ .Values.postgres.migration.components }}
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: {{ .Values.postgres.name }}-backup
+              image: "{{ .Values.postgres.image }}:{{ .Values.postgres.version }}"
+              command:
+              - /bin/sh
+              - -c
+              - |
+                pg_dumpall -h $(POSTGRES_HOST) -U $(POSTGRES_USER) -p $(POSTGRES_PORT) -f /backups/pg-backup-$(date +'%m-%d-%Y').db
+              envFrom:
+                - secretRef:
+                    name: {{ .Values.postgres.name }}-secret
+              env:
+                - name: PGPASSWORD
+                  value: "$(POSTGRES_PASSWORD)"
+                - name: POSTGRES_HOST_AUTH_METHOD
+                  value: trust # this will allow us to make a connection to another instance
+              volumeMounts:
+                - name: {{ .Values.postgres.name }}-backup-volume
+                  mountPath: /backups
+          volumes: 
+            - name: {{ .Values.postgres.name }}-backup-volume
+              persistentVolumeClaim:
+                claimName: {{ .Values.postgres.name }}-pvc

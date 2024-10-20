@@ -1,0 +1,31 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Values.postgres.name }}-clean-backup-cron-job
+  namespace: {{ .Values.namespace }}
+spec:
+  schedule: "@weekly"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 0
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      ttlSecondsAfterFinished: 600
+      template:
+        metadata:
+          labels:
+            app: {{ .Values.postgres.migration.components }}
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: {{ .Values.postgres.name }}-clean-backup
+              image: busybox@sha256:ba76950ac9eaa407512c9d859cea48114eeff8a6f12ebaa5d32ce79d4a017dd8
+              command: ["find", "/backups", "-type", "f", "-mtime", "+7", "-exec", "rm", "-f", "{}", "+"]
+              volumeMounts:
+                - name: {{ .Values.postgres.name }}-backup-volume
+                  mountPath: /backups
+          volumes: 
+            - name: {{ .Values.postgres.name }}-backup-volume
+              persistentVolumeClaim:
+                claimName: {{ .Values.postgres.name }}-pvc

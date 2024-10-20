@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ .Values.postgres.name }}-volume
+  namespace: {{ .Values.namespace }}
+  labels:
+    type: local
+    app: {{ .Values.postgres.components }}
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  hostPath:
+    path: /data/postgresql

@@ -1,0 +1,38 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: krakend-ingress
+  namespace: {{ .Values.namespace }}
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+    nginx.ingress.kubernetes.io/use-regex: 'true'
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: {{ .Values.host.auth }}
+      http:
+        paths:
+          - path: /?(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: {{ .Values.auth.name }}-clusterip
+                port:
+                  number: {{ .Values.auth.servicePort }}
+    - host: {{ .Values.host.app }}
+      http:
+        paths:
+          - path: /api/?(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: {{ .Values.gateway.name }}-clusterip
+                port:
+                  number: {{ .Values.gateway.servicePort }}
+          - path: /?(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: {{ .Values.front.name }}-clusterip
+                port:
+                  number: {{ .Values.front.servicePort }}
