@@ -1,7 +1,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: krakend-ingress
+  name: {{ .Release.Name }}-ingress
   namespace: {{ .Values.namespace }}
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /$1
@@ -9,6 +9,16 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
+    - host: monitor
+      http:
+        paths:
+          - path: /?(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: {{ .Release.Name }}-grafana
+                port:
+                  number: 80
     - host: {{ .Values.host.auth }}
       http:
         paths:

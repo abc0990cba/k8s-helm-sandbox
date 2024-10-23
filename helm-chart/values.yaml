@@ -31,7 +31,7 @@ front:
 back:
   name: grogu-back
   image: mmko67/grogu-api
-  version: 0.0.9
+  version: 0.1.1
   components: back
   servicePort: 9070
   containerPort: 8080
@@ -77,3 +77,10 @@ redis:
   components: cache
   containerPort: 6379
   servicePort: 6379
+
+# prometheus:
+#   prometheusSpec:
+#     serviceMonitorSelector: {}
+#     podMonitorSelector: {}
+#     podMonitorSelectorNilUsesHelmValues: false
+#     serviceMonitorSelectorNilUsesHelmValues: false

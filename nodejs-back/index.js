@@ -1,38 +1,16 @@
 const keys = require("./keys");
+const { metricsMiddleware, metricsRoute } = require("./metrics");
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const { Pool } = require("pg");
 const { createClient } = require('redis');
-const promClient = require('prom-client');
 
 const app = express();
 
-const promRegistry = new promClient.Registry();
-
-promRegistry.setDefaultLabels({
-  app: 'example-nodejs-app'
-})
-
-promClient.collectDefaultMetrics({ register: promRegistry })
-
-// Create a simple counter metric
-const httpRequestDurationMicroseconds = new promClient.Histogram({
-    name: 'http_request_duration_seconds',
-    help: 'Duration of HTTP requests in seconds',
-    labelNames: ['method', 'route'],
-    registers: [promRegistry],
-});
-
-promRegistry.registerMetric(httpRequestDurationMicroseconds)
-
-app.get('/metrics', async (req, res) => {
-    res.set('Content-Type', promRegistry.contentType);
-    res.end(await promRegistry.metrics());
-});
-
 app.use(cors());
 app.use(bodyParser.json());
+app.use(metricsMiddleware);
 
 const pgClient = new Pool({
   user: keys.pgUser,
@@ -61,6 +39,8 @@ app.get("/", async (req, res) => {
   const num = await redisClient.get('key');
   res.send(num);
 });
+
+app.get('/metrics', metricsRoute);
 
 app.get('/will', function (req, res) {
     res.send(keys);
