@@ -1,0 +1,49 @@
+{{- define "wait-for-redis-cache" }}
+- name: wait-for-{{ .Values.redis.name }}
+  image: bash:4.4
+  command: 
+  - bash
+  - -c
+  - |
+    until (echo PING | nc -w 1 {{ .Values.redis.name }}-clusterip {{ .Values.redis.servicePort }} | grep PONG);
+    do 
+      echo "Waiting for Redis..."
+      sleep 2
+    done
+    echo "redis is ready!"
+{{- end }}
+
+{{- define "wait-for-postgres-db"}}
+- name: wait-for-{{ .Values.postgres.name }}
+  image: "{{ .Values.postgres.image }}:{{ .Values.postgres.version }}"
+  env:
+  - name: PGHOST
+    valueFrom:
+      secretKeyRef:
+        key: POSTGRES_HOST
+        name: {{ .Values.postgres.name }}-secret
+  - name: PGUSER
+    valueFrom:
+      secretKeyRef:
+        key: POSTGRES_USER
+        name: {{ .Values.postgres.name }}-secret
+  - name: PGPASSWORD
+    valueFrom:
+      secretKeyRef:
+        key: POSTGRES_PASSWORD
+        name: {{ .Values.postgres.name }}-secret
+  - name: PGDATABASE
+    valueFrom:
+      secretKeyRef:
+        key: POSTGRES_DB
+        name: {{ .Values.postgres.name }}-secret
+  command:
+  - /bin/sh
+  - -c
+  - |
+    while ! psql -c 'select 1' > /dev/null 2>&1; do
+      echo "waiting for database"
+      sleep 1
+    done
+    echo "database is ready from helper!"
+{{- end }}

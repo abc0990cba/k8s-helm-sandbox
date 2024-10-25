@@ -10,38 +10,7 @@ spec:
         app: {{ .Values.postgres.migration.components }}
     spec:
       initContainers:
-        - name: wait-for-{{ .Values.postgres.name }}
-          image: "{{ .Values.postgres.image }}:{{ .Values.postgres.version }}"
-          env:
-          - name: PGHOST
-            valueFrom:
-              secretKeyRef:
-                key: POSTGRES_HOST
-                name: {{ .Values.postgres.name }}-secret
-          - name: PGUSER
-            valueFrom:
-              secretKeyRef:
-                key: POSTGRES_USER
-                name: {{ .Values.postgres.name }}-secret
-          - name: PGPASSWORD
-            valueFrom:
-              secretKeyRef:
-                key: POSTGRES_PASSWORD
-                name: {{ .Values.postgres.name }}-secret
-          - name: PGDATABASE
-            valueFrom:
-              secretKeyRef:
-                key: POSTGRES_DB
-                name: {{ .Values.postgres.name }}-secret
-          command:
-          - /bin/sh
-          - -c
-          - |
-            while ! psql -c 'select 1' > /dev/null 2>&1; do
-              echo "waiting for database"
-              sleep 1
-            done
-            echo "database is ready!"
+        {{- include "wait-for-postgres-db" . | indent 8}}
       containers:
       - name: {{ .Values.postgres.migration.name }}
         image: "{{ .Values.postgres.image }}:{{ .Values.postgres.version }}"
