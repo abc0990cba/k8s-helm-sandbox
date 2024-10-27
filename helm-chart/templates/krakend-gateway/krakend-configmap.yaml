@@ -4,4 +4,4 @@ metadata:
   name: {{ .Values.gateway.name }}-configmap
   namespace: {{ .Values.namespace }}
 data:
-  krakend.json: {{ (.Files.Get "config/krakend.json") | quote }}
+  krakend.json: {{ tpl (.Files.Get "config/krakend.json") . | quote }}

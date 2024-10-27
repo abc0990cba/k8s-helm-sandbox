@@ -9,13 +9,12 @@ host:
 
 gateway:
   name: krakend-gateway
-  # image: mmko67/k8s-krakend
-  # version: 0.2.1
   image: devopsfaith/krakend
   version: 2.7 
   components: gateway
   servicePort: 8787
   containerPort: 8080
+  metricsTargetPort: 9090
   replicas: 2
   limits:
     memory: "512Mi"

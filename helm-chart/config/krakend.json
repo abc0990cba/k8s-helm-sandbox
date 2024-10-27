@@ -1,7 +1,7 @@
 {
   "version": 3,
   "name": "KrakenD on k8s",
-  "port": 8081,
+  "port": {{ .Values.gateway.containerPort | quote }},
   "cache_ttl": "3600s",
   "timeout": "3s",
   "host": [
@@ -18,13 +18,13 @@
           "prometheus": [
               {
                   "name": "local_prometheus",
-                  "port": 9090,
+                  "port": {{ .Values.gateway.metricsTargetPort | quote }},
                   "process_metrics": true,
                   "go_metrics": true
               }
           ]
       }
-  },
+    },
     "security/cors": {
       "allow_origins": [
         "http://grogu.test"
@@ -59,7 +59,7 @@
       "backend": [
         {
           "host": [
-            "http://krakend-service:8000"
+            "http://krakend-gateway-clusterip:8787"
           ],
           "url_pattern": "/__debug/supu"
         }
@@ -80,31 +80,6 @@
           "mapping": {
             "email": "personal_email"
           }
-        }
-      ]
-    },
-    {
-      "endpoint": "/api",
-      "backend": [
-        {
-          "host": [
-            "http://fake-api:8080"
-          ],
-          "url_pattern": "/"
-        }
-      ]
-    },
-    {
-      "endpoint": "/api/ready",
-      "backend": [
-        {
-          "host": [
-            "http://fake-api:8080"
-          ],
-          "url_pattern": "/ready",
-          "disable_host_sanitize": false,
-          "encoding": "json",
-          "method": "GET"
         }
       ]
     },
@@ -178,7 +153,7 @@
           "is_collection": true,
           "url_pattern": "/values",
           "mapping": {
-            "collection": "data12"
+            "collection": "data"
           }
         }
       ]
