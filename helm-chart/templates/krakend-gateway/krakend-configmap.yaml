@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.gateway.name }}-configmap
+  namespace: {{ .Values.namespace }}
+data:
+  krakend.json: {{ (.Files.Get "config/krakend.json") | quote }}

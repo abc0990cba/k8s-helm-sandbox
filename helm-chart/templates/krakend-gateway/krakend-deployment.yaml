@@ -12,6 +12,8 @@ spec:
     metadata:
       labels:
         app: {{ .Values.gateway.components }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/krakend-gateway/krakend-configmap.yaml") . | sha256sum }}
     spec:
       containers:
       - name: {{ .Values.gateway.name }}
@@ -26,3 +28,15 @@ spec:
           httpGet:
             path: /v1/open
             port: {{ .Values.gateway.containerPort }}
+        volumeMounts:
+          - name: config-volume
+            mountPath: /etc/krakend/
+      volumes:
+        - name: config-volume
+          configMap:
+            name: {{ .Values.gateway.name }}-configmap
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
