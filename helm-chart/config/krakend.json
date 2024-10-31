@@ -66,42 +66,6 @@
       ]
     },
     {
-      "endpoint": "/combination/{id}",
-      "backend": [
-        {
-          "url_pattern": "/posts?userId={id}",
-          "is_collection": true,
-          "mapping": {
-            "collection": "posts"
-          }
-        },
-        {
-          "url_pattern": "/users/{id}",
-          "mapping": {
-            "email": "personal_email"
-          }
-        }
-      ]
-    },
-    {
-      "endpoint": "/v1/svc1/hello",
-      "extra_config": {
-        "auth/validator": {
-            "alg": "RS256",
-            "jwk_url": "http://auth.test/realms/myrealm/protocol/openid-connect/certs",
-            "disable_jwk_security": true
-        }
-      },
-      "backend": [
-        {
-          "host": [
-            "http://krakend-service:8000"
-          ],
-          "url_pattern": "/__debug/supu"
-        }
-      ]
-    },
-    {
       "endpoint": "/v1/values",
       "extra_config": {
         "auth/validator": {

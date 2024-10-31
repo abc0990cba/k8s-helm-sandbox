@@ -6,13 +6,12 @@ import (
 	"os/signal"
 	"syscall"
 
+	"golang-back/internal/config"
 	"golang-back/internal/handler"
 	"golang-back/internal/repository"
 	"golang-back/internal/service"
 
 	"github.com/joho/godotenv"
-
-	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -26,9 +25,9 @@ func loadEnvs() {
 }
 
 func (app *App) Run() {
-	// loadEnvs()
+	loadEnvs()
 
-	db, err := repository.NewPostgresDB(repository.Config{
+	db, err := config.NewPostgresDB(config.DBConfig{
 		Host:     os.Getenv("POSTGRES_HOST"),
 		Port:     os.Getenv("POSTGRES_PORT"),
 		Username: os.Getenv("POSTGRES_USER"),
@@ -36,7 +35,7 @@ func (app *App) Run() {
 		Password: os.Getenv("POSTGRES_PASSWORD"),
 	})
 	if err != nil {
-		logrus.Fatalf("Failed initialization database: %s", err.Error())
+		log.Fatalf("Failed initialization database: %s", err.Error())
 	}
 
 	repos := repository.NewRepository(db)
@@ -46,23 +45,23 @@ func (app *App) Run() {
 	server := new(Server)
 	go func() {
 		if err := server.Run(os.Getenv("PORT"), handlers.InitRoutes()); err != nil {
-			logrus.Fatalf("error occured while running http server: %s", err.Error())
+			log.Fatalf("error occured while running http server: %s", err.Error())
 		}
 	}()
 
-	logrus.Print("!! App Started !!")
+	log.Printf("!! App Started on port=%s !!", os.Getenv("PORT"))
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
 	<-quit
 
-	logrus.Print("TodoApp Shutting Down")
+	log.Print("TodoApp Shutting Down")
 
 	if err := server.Shutdown(context.Background()); err != nil {
-		logrus.Errorf("error occured on server shutting down: %s", err.Error())
+		log.Errorf("error occured on server shutting down: %s", err.Error())
 	}
 
 	if err := db.Close(); err != nil {
-		logrus.Errorf("error occured on db connection close: %s", err.Error())
+		log.Errorf("error occured on db connection close: %s", err.Error())
 	}
 }

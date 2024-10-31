@@ -1,4 +1,4 @@
-package repository
+package config
 
 import (
 	"fmt"
@@ -8,11 +8,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
-const (
-	numbersTable = "golang_numbers"
-)
-
-type Config struct {
+type DBConfig struct {
 	Host     string
 	Port     string
 	Username string
@@ -20,7 +16,7 @@ type Config struct {
 	DBName   string
 }
 
-func NewPostgresDB(cfg Config) (*sqlx.DB, error) {
+func NewPostgresDB(cfg DBConfig) (*sqlx.DB, error) {
 	db, err := sqlx.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s dbname=%s password=%s sslmode=disable",
 		cfg.Host, cfg.Port, cfg.Username, cfg.DBName, cfg.Password))
 	if err != nil {
