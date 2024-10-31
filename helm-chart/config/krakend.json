@@ -157,6 +157,21 @@
           }
         }
       ]
+    },
+    {
+      "endpoint": "/v1/golang/open",
+      "backend": [
+        {
+          "host": [
+            "http://golang-back-clusterip:8800"
+          ],
+          "is_collection": true,
+          "url_pattern": "/numbers",
+          "mapping": {
+            "collection": "data"
+          }
+        }
+      ]
     }
   ]
 }

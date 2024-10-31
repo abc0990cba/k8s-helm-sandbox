@@ -44,6 +44,20 @@ back:
     memory: "500Mi"
     cpu: "200m"
 
+
+golangBack:
+  name: golang-back
+  image: mmko67/golang-back
+  version: 0.0.2
+  components: back
+  servicePort: 8800
+  containerPort: 8080
+  replicas: 1
+  limits:
+    memory: "500Mi"
+    cpu: "200m"
+
+
 auth:
   name: keycloak-auth
   image: quay.io/keycloak/keycloak
@@ -71,7 +85,7 @@ postgres:
   #   cpu: "300m"
   migration:
     name: postgres-migration
-    version: 1
+    version: 2
     components: migration
 
 redis:
@@ -81,10 +95,3 @@ redis:
   components: cache
   containerPort: 6379
   servicePort: 6379
-
-# prometheus:
-#   prometheusSpec:
-#     serviceMonitorSelector: {}
-#     podMonitorSelector: {}
-#     podMonitorSelectorNilUsesHelmValues: false
-#     serviceMonitorSelectorNilUsesHelmValues: false

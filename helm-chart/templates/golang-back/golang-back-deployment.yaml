@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.golangBack.name }}-deployment
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.golangBack.components }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.golangBack.components }}
+  replicas: {{ .Values.golangBack.replicas }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.golangBack.components }}
+    spec:
+      initContainers:
+        {{- include "wait-for-postgres-db" . | indent 8}}
+        {{- include "wait-for-redis-cache" . | indent 8}}
+      containers:
+      - name: {{ .Values.golangBack.name }}
+        image: "{{ .Values.golangBack.image }}:{{ .Values.golangBack.version }}"
+        ports:
+        - containerPort: {{ .Values.golangBack.containerPort }}
+        resources:
+          limits: {{ .Values.golangBack.limits | toYaml | nindent 14 }}
+        envFrom:
+            - secretRef:
+                name: {{ .Values.postgres.name }}-secret
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: {{ .Values.golangBack.containerPort }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
