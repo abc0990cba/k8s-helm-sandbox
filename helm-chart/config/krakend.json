@@ -1,12 +1,9 @@
 {
   "version": 3,
   "name": "KrakenD on k8s",
-  "port": {{ .Values.gateway.containerPort | quote }},
+  "port": "{{ .Values.gateway.containerPort }}",
   "cache_ttl": "3600s",
   "timeout": "3s",
-  "host": [
-    "https://jsonplaceholder.typicode.com"
-  ],
   "extra_config": {
     "router": {
       "auto_options": true
@@ -18,7 +15,7 @@
           "prometheus": [
               {
                   "name": "local_prometheus",
-                  "port": {{ .Values.gateway.metricsTargetPort | quote }},
+                  "port": "{{ .Values.gateway.metricsTargetPort }}",
                   "process_metrics": true,
                   "go_metrics": true
               }
@@ -27,7 +24,7 @@
     },
     "security/cors": {
       "allow_origins": [
-        "http://grogu.test"
+        "http://{{ .Values.host.app }}"
       ],
       "allow_methods": [
         "GET",
@@ -55,11 +52,11 @@
   },
   "endpoints": [
     {
-      "endpoint": "/supu",
+      "endpoint": "/healthz",
       "backend": [
         {
           "host": [
-            "http://krakend-gateway-clusterip:8787"
+            "http://{{ .Values.gateway.name }}-clusterip:{{ .Values.gateway.servicePort }}"
           ],
           "url_pattern": "/__debug/supu"
         }
@@ -69,16 +66,16 @@
       "endpoint": "/v1/values",
       "extra_config": {
         "auth/validator": {
-          "operation_debug": true,
-            "alg": "RS256",
-            "jwk_url": "http://keycloak-auth-clusterip:8080/realms/myrealm/protocol/openid-connect/certs",
+            "operation_debug": true,
+            "alg": "{{ .Values.auth.alg }}",
+            "jwk_url": "{{ .Values.auth.jwkUrl }}",
             "disable_jwk_security": true
         }
-    },
+      },
       "backend": [
         {
           "host": [
-            "http://grogu-back-clusterip:9070"
+            "http://{{ .Values.back.name }}-clusterip:{{ .Values.back.servicePort }}"
           ],
           "is_collection": true,
           "url_pattern": "/values",
@@ -89,30 +86,11 @@
       ]
     },
     {
-      "endpoint": "/v1/will",
-      "extra_config": {
-        "auth/validator": {
-            "operation_debug": true,
-            "alg": "RS256",
-            "jwk_url": "http://keycloak-auth-clusterip:8080/realms/myrealm/protocol/openid-connect/certs",
-            "disable_jwk_security": true
-        }
-      },
-      "backend": [
-        {
-          "host": [
-            "http://grogu-back-clusterip:9070"
-          ],
-          "url_pattern": "/will"
-        }
-      ]
-    },
-    {
       "endpoint": "/v1/open",
       "backend": [
         {
           "host": [
-            "http://grogu-back-clusterip:9070"
+            "http://{{ .Values.back.name }}-clusterip:{{ .Values.back.servicePort }}"
           ],
           "is_collection": true,
           "url_pattern": "/values",
@@ -127,7 +105,7 @@
       "backend": [
         {
           "host": [
-            "http://golang-back-clusterip:8800"
+             "http://{{ .Values.golangBack.name }}-clusterip:{{ .Values.golangBack.servicePort }}"
           ],
           "is_collection": true,
           "url_pattern": "/numbers",

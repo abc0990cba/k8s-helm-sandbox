@@ -65,6 +65,8 @@ auth:
   components: auth
   servicePort: 8080
   containerPort: 8080
+  jwkUrl: http://keycloak-auth-clusterip:8080/realms/myrealm/protocol/openid-connect/certs
+  alg: "RS256"
   replicas: 1
   realm:
     file:
