@@ -28,6 +28,9 @@ spec:
         envFrom:
             - secretRef:
                 name: {{ .Values.postgres.name }}-secret
+        env:
+        - name: PORT
+          value: {{ .Values.nodejsBack.containerPort | quote }}
         livenessProbe:
           httpGet:
             path: /healthz

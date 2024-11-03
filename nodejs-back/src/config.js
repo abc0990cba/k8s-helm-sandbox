@@ -1,5 +1,5 @@
-module.exports = {
-  port: 8080,
+export const config = {
+  port: process.env.PORT || 8030,
   pgUser: process.env.POSTGRES_USER || 'ps_user',
   pgHost: process.env.POSTGRES_HOST || 'localhost',
   pgDatabase: process.env.POSTGRES_DB || 'ps_db',

@@ -13,7 +13,7 @@ helm install ap ./helm-chart
 grafana
 login: admin
 password:
-kubectl get secret "GRAFANA_SERVICE_NAME_HERE" -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
+kubectl get secret service/ap-grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
 
 
 https://facelessnomad.medium.com/deploying-your-app-and-database-with-helm-on-kubernetes-8ba20733eea9

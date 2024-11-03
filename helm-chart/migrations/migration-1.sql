@@ -1,9 +1,9 @@
-CREATE TABLE IF NOT EXISTS numbers (
+CREATE TABLE IF NOT EXISTS nodejs_numbers (
   id SERIAL PRIMARY KEY,
   number INT NOT NULL
 );
 
-INSERT INTO numbers (number) VALUES  (3087), (45), (8912), (5), (99), (333);
+INSERT INTO nodejs_numbers (number) VALUES  (3087);
 
 CREATE TABLE IF NOT EXISTS golang_numbers (
   id SERIAL PRIMARY KEY,

@@ -93,7 +93,22 @@
             "http://{{ .Values.nodejsBack.name }}-clusterip:{{ .Values.nodejsBack.servicePort }}"
           ],
           "is_collection": true,
-          "url_pattern": "/values",
+          "url_pattern": "/numbers",
+          "mapping": {
+            "collection": "data"
+          }
+        }
+      ]
+    },
+    {
+      "endpoint": "/v1/nodejs/public2",
+      "backend": [
+        {
+          "host": [
+            "http://{{ .Values.nodejsBack.name }}-clusterip:{{ .Values.nodejsBack.servicePort }}"
+          ],
+          "is_collection": true,
+          "url_pattern": "/fibonacci",
           "mapping": {
             "collection": "data"
           }

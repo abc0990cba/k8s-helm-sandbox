@@ -4,16 +4,18 @@ loadGenerator:
   image: busybox
   version: 1.28
   components: load
-  replicas: 30
+  replicas: 20
 
 metrics:
-  enabled: false
+  enabled: true
 
 namespace: default
 
 host:
   auth: auth.test
   app: grogu.test
+  prometheus: prom.test
+  grafana: grafana.test
 
 gateway:
   name: krakend-gateway
@@ -43,7 +45,7 @@ front:
 nodejsBack:
   name: nodejs-back
   image: mmko67/grogu-api
-  version: 0.1.2
+  version: 0.1.5
   components: back
   servicePort: 9070
   containerPort: 8080
