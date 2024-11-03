@@ -45,7 +45,7 @@ func (app *App) Run() {
 	server := new(Server)
 	go func() {
 		if err := server.Run(os.Getenv("PORT"), handlers.InitRoutes()); err != nil {
-			log.Fatalf("error occured while running http server: %s", err.Error())
+			log.Fatalf("Error occured while running http server: %s", err.Error())
 		}
 	}()
 
@@ -55,13 +55,13 @@ func (app *App) Run() {
 	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
 	<-quit
 
-	log.Print("TodoApp Shutting Down")
+	log.Print("App Shutting Down")
 
 	if err := server.Shutdown(context.Background()); err != nil {
-		log.Errorf("error occured on server shutting down: %s", err.Error())
+		log.Errorf("Error occured on server shutting down: %s", err.Error())
 	}
 
 	if err := db.Close(); err != nil {
-		log.Errorf("error occured on db connection close: %s", err.Error())
+		log.Errorf("Error occured on db connection close: %s", err.Error())
 	}
 }

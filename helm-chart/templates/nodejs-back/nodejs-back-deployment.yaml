@@ -1,36 +1,36 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Values.back.name }}-deployment
+  name: {{ .Values.nodejsBack.name }}-deployment
   namespace: {{ .Values.namespace }}
   labels:
-    app: {{ .Values.back.components }}
+    app: {{ .Values.nodejsBack.components }}
 spec:
   selector:
     matchLabels:
-      app: {{ .Values.back.components }}
-  replicas: {{ .Values.back.replicas }}
+      app: {{ .Values.nodejsBack.components }}
+  replicas: {{ .Values.nodejsBack.replicas }}
   template:
     metadata:
       labels:
-        app: {{ .Values.back.components }}
+        app: {{ .Values.nodejsBack.components }}
     spec:
       initContainers:
         {{- include "wait-for-postgres-db" . | indent 8}}
         {{- include "wait-for-redis-cache" . | indent 8}}
       containers:
-      - name: {{ .Values.back.name }}
-        image: "{{ .Values.back.image }}:{{ .Values.back.version }}"
+      - name: {{ .Values.nodejsBack.name }}
+        image: "{{ .Values.nodejsBack.image }}:{{ .Values.nodejsBack.version }}"
         ports:
-        - containerPort: {{ .Values.back.containerPort }}
+        - containerPort: {{ .Values.nodejsBack.containerPort }}
         resources:
-          limits: {{ .Values.back.limits | toYaml | nindent 14 }}
+          limits: {{ .Values.nodejsBack.limits | toYaml | nindent 14 }}
         envFrom:
             - secretRef:
                 name: {{ .Values.postgres.name }}-secret
         livenessProbe:
           httpGet:
             path: /healthz
-            port: {{ .Values.back.containerPort }}
+            port: {{ .Values.nodejsBack.containerPort }}
           initialDelaySeconds: 5
           periodSeconds: 5

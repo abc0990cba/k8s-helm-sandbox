@@ -29,7 +29,7 @@ gateway:
     cpu: "200m"
 
 front:
-  name: grogu-front
+  name: react-front
   image: mmko67/grogu-front
   version: 0.1.0
   components: front
@@ -40,8 +40,8 @@ front:
     memory: "128Mi"
     cpu: "100m"
 
-back:
-  name: grogu-back
+nodejsBack:
+  name: nodejs-back
   image: mmko67/grogu-api
   version: 0.1.2
   components: back

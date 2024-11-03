@@ -14,4 +14,4 @@ spec:
   - from:
     - podSelector:
         matchLabels:
-          app: {{ .Values.back.components }}
+          app: {{ .Values.nodejsBack.components }}

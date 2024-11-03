@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.nodejsBack.name }}-clusterip
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.nodejsBack.components }}
+spec:
+  type: ClusterIP
+  ports:
+  - name: http-metrics
+    port: {{ .Values.nodejsBack.servicePort }}
+    targetPort: {{ .Values.nodejsBack.containerPort }}
+    protocol: TCP
+  selector:
+    app: {{ .Values.nodejsBack.components }}

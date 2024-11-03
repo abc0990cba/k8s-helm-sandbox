@@ -45,5 +45,5 @@
       echo "waiting for database"
       sleep 1
     done
-    echo "database is ready from helper!"
+    echo "database is ready!"
 {{- end }}

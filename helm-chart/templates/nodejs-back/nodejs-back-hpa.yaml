@@ -1,13 +1,13 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ .Values.back.name }}-hpa
+  name: {{ .Values.nodejsBack.name }}-hpa
   namespace: {{ .Values.namespace }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ .Values.back.name }}-deployment
+    name: {{ .Values.nodejsBack.name }}-deployment
   minReplicas: 1
   maxReplicas: 10
   metrics:

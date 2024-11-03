@@ -75,7 +75,7 @@
       "backend": [
         {
           "host": [
-            "http://{{ .Values.back.name }}-clusterip:{{ .Values.back.servicePort }}"
+            "http://{{ .Values.nodejsBack.name }}-clusterip:{{ .Values.nodejsBack.servicePort }}"
           ],
           "is_collection": true,
           "url_pattern": "/values",
@@ -86,11 +86,11 @@
       ]
     },
     {
-      "endpoint": "/v1/open",
+      "endpoint": "/v1/nodejs/public",
       "backend": [
         {
           "host": [
-            "http://{{ .Values.back.name }}-clusterip:{{ .Values.back.servicePort }}"
+            "http://{{ .Values.nodejsBack.name }}-clusterip:{{ .Values.nodejsBack.servicePort }}"
           ],
           "is_collection": true,
           "url_pattern": "/values",
@@ -101,7 +101,7 @@
       ]
     },
     {
-      "endpoint": "/v1/golang/open",
+      "endpoint": "/v1/golang/public",
       "backend": [
         {
           "host": [

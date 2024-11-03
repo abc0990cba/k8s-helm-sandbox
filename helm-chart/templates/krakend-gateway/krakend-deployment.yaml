@@ -19,15 +19,21 @@ spec:
       - name: {{ .Values.gateway.name }}
         image: "{{ .Values.gateway.image }}:{{ .Values.gateway.version }}"
         ports:
-        - containerPort: {{ .Values.back.containerPort }}
+        - containerPort: {{ .Values.gateway.containerPort }}
         resources:
           limits: {{ .Values.gateway.limits | toYaml | nindent 14 }}
         command: [ "/usr/bin/krakend" ]
         args: [ "run", "-d", "-c", "/etc/krakend/krakend.json", "-p", {{ .Values.gateway.containerPort | quote }} ]
         readinessProbe:
           httpGet:
-            path: /v1/open
+            path: /v1/nodejs/public
             port: {{ .Values.gateway.containerPort }}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: {{ .Values.gateway.containerPort }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
         volumeMounts:
           - name: config-volume
             mountPath: /etc/krakend/
