@@ -1,0 +1,28 @@
+{{- if .Values.loadGenerator.enable }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.loadGenerator.name }}-deployment
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.loadGenerator.components }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.loadGenerator.components }}
+  replicas: {{ .Values.loadGenerator.replicas }}
+  template:
+    metadata:
+      name: {{ .Values.loadGenerator.name }}
+      labels:
+        app: {{ .Values.loadGenerator.components }}
+    spec:
+      containers:
+      - name: {{ .Values.loadGenerator.name }}
+        image: "{{ .Values.loadGenerator.image }}:{{ .Values.loadGenerator.version }}"
+        command:
+        - /bin/sh
+        - -c
+        - "while sleep 0.001; do wget -q -O- http://{{ .Values.back.name }}-clusterip:{{ .Values.back.servicePort }}/fibonacci; done"
+{{- end }}

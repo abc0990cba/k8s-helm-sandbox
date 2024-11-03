@@ -1,3 +1,11 @@
+loadGenerator: 
+  enable: false
+  name: load-generator
+  image: busybox
+  version: 1.28
+  components: load
+  replicas: 30
+
 metrics:
   enabled: false
 
@@ -35,7 +43,7 @@ front:
 back:
   name: grogu-back
   image: mmko67/grogu-api
-  version: 0.1.1
+  version: 0.1.2
   components: back
   servicePort: 9070
   containerPort: 8080

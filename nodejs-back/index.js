@@ -46,13 +46,27 @@ app.get('/will', function (req, res) {
     res.send(keys);
 });
 
+app.get('fibonacci', function (req, res) {
+  function fib(n) {
+    return n <= 1 ? n : fib(n - 1) + fib(n - 2);
+  }
+
+  const n = Math.round(Math.random() * 10000);
+  const sum = fib(n);
+  
+  console.log(`n: ${n} sum: ${sum}`);
+
+  res.send(sum);
+})
+
 app.get('/ready', function (req, res) {
     console.log("ready"); 
     res.send('ready');
 });
 
 app.get('/healthz', function (req, res) {
-  res.send('ok');
+  console.log("healthy");
+  res.send('healthy');
 });  
 
 app.get("/values", async (req, res) => {
