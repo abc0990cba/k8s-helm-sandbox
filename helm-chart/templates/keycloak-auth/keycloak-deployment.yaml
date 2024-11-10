@@ -12,6 +12,8 @@ spec:
     metadata:
       labels:
         app: {{ .Values.auth.components }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/keycloak-auth/keycloak-configmap.yaml") . | sha256sum }}
     spec:
       containers:
         - name: {{ .Values.auth.name }}
@@ -33,15 +35,9 @@ spec:
             - name: DB_ADDR
               value: {{ .Values.postgres.name }}-clusterip
             - name: DB_PORT
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.postgres.name }}-secret
-                  key: POSTGRES_PORT
+              value: {{ .Values.postgres.servicePort | quote }}
             - name: DB_DATABASE
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.postgres.name }}-secret
-                  key: POSTGRES_DB
+              value: {{ .Values.postgres.servicePort | quote }}
             - name: DB_SCHEMA
               value: "public"
             - name: DB_USER

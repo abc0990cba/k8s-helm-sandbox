@@ -43,6 +43,8 @@ with Diagram(name="Fullstack app", show=False):
       metrics = Prometheus("prometheus")
       metrics << Edge(color="firebrick", style="dashed") << Grafana("grafana")
       metrics >> backends
+      metrics >> pg
+      metrics >> redis
 
 
 

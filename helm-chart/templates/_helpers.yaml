@@ -18,10 +18,7 @@
   image: "{{ .Values.postgres.image }}:{{ .Values.postgres.version }}"
   env:
   - name: PGHOST
-    valueFrom:
-      secretKeyRef:
-        key: POSTGRES_HOST
-        name: {{ .Values.postgres.name }}-secret
+    value: "{{ .Values.postgres.name }}-clusterip"
   - name: PGUSER
     valueFrom:
       secretKeyRef:

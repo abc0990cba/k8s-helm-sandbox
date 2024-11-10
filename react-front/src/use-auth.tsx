@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import Keycloak from "keycloak-js";
 
 const client = new Keycloak({
@@ -7,22 +7,20 @@ const client = new Keycloak({
   clientId: import.meta.env.VITE_KEYCLOAK_CLIENT,
 });
 
-
-const useAuth = () => {
+export const useAuth = () => {
   const isRun = useRef(false);
-  const [token, setToken] = useState(null);
-  const [isLogin, setLogin] = useState(false);
+  const [token, setToken] = useState<string>('');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
     if (isRun.current) return;
-
     isRun.current = true;
     client
       .init({
         onLoad: "login-required",
-        // onLoad: 'check-sso', // check-sso | login-required
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        //@ts-ignore
         KeycloakResponseType: 'code',
-        // silentCheckSsoRedirectUri: window.location.origin + "/silent-check-sso.html", 
         checkLoginIframe: false,
         pkceMethod: 'S256',
         redirectUri: import.meta.env.VITE_REDIRECT_URL,
@@ -30,23 +28,16 @@ const useAuth = () => {
       .then((res) => {
         if (!res) {
           console.info("res", res);
-          // window.location.reload();
         } else {
-          setLogin(res);
-        setToken(client.token);
-          console.info("Authenticated");
-          console.log('auth', res)
-          console.log('Keycloak', client)
+          setIsLoggedIn(res);
+          setToken(client?.token || '');
           client.onTokenExpired = () => {
             console.log('token expired')
           }
         }
-
-        
       });
   }, []);
 
-  return [isLogin, token];
+  return { isLoggedIn, token };
 };
 
-export default useAuth;

@@ -21,6 +21,10 @@ spec:
         env:
         - name: PGPASSWORD
           value: "$(POSTGRES_PASSWORD)"
+        - name: POSTGRES_PORT
+          value: {{ .Values.postgres.servicePort | quote }}
+        - name: POSTGRES_HOST
+          value: "{{ .Values.postgres.name }}-clusterip"
         envFrom:
             - secretRef:
                 name: {{ .Values.postgres.name }}-secret

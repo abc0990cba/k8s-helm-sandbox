@@ -36,6 +36,10 @@ spec:
                   value: "$(POSTGRES_PASSWORD)"
                 - name: POSTGRES_HOST_AUTH_METHOD
                   value: trust # this will allow us to make a connection to another instance
+                - name: POSTGRES_PORT
+                  value: {{ .Values.postgres.servicePort | quote }}
+                - name: POSTGRES_HOST
+                  value: "{{ .Values.postgres.name }}-clusterip"
               volumeMounts:
                 - name: {{ .Values.postgres.name }}-backup-volume
                   mountPath: /backups

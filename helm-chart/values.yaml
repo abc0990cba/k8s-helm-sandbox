@@ -1,3 +1,5 @@
+environment: prod
+
 loadGenerator: 
   enable: false
   name: load-generator
@@ -7,7 +9,7 @@ loadGenerator:
   replicas: 20
 
 metrics:
-  enabled: true
+  enabled: false
 
 namespace: default
 
@@ -28,12 +30,12 @@ gateway:
   replicas: 2
   limits:
     memory: "512Mi"
-    cpu: "200m"
+    cpu: "400m"
 
 front:
   name: react-front
   image: mmko67/grogu-front
-  version: 0.1.0
+  version: 0.3.6
   components: front
   servicePort: 9071
   containerPort: 8080
@@ -45,7 +47,7 @@ front:
 nodejsBack:
   name: nodejs-back
   image: mmko67/grogu-api
-  version: 0.1.5
+  version: 0.1.6
   components: back
   servicePort: 9070
   containerPort: 8080
@@ -67,7 +69,6 @@ golangBack:
     memory: "500Mi"
     cpu: "200m"
 
-
 auth:
   name: keycloak-auth
   image: quay.io/keycloak/keycloak
@@ -75,8 +76,8 @@ auth:
   components: auth
   servicePort: 8080
   containerPort: 8080
-  jwkUrl: http://keycloak-auth-clusterip:8080/realms/myrealm/protocol/openid-connect/certs
-  alg: "RS256"
+  jwkUrl: http://keycloak-auth-clusterip:8080/realms/demorealm/protocol/openid-connect/certs
+  alg: RS256
   replicas: 1
   realm:
     file:

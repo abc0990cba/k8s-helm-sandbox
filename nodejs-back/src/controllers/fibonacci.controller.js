@@ -11,7 +11,7 @@ export class FibonacciController {
   }
 
   initializeRoutes() {
-    this.router.get(`${this.path}/:number`, this.getFibonacciSum);
+    this.router.get(`${this.path}`, this.getFibonacciSum);
   }
 
   getFibonacciSum = async (req, res, next) => {
@@ -26,7 +26,7 @@ export class FibonacciController {
 
     const fiboSum = fib[number-1];
 
-    // console.log(`number: ${number}; fibonacci sum: ${fiboSum.toString()}`);
+    console.log(`number: ${number}; fibonacci sum: ${fiboSum.toString()}`);
   
     res.send({ number, fiboSum: fiboSum.toString() });
   }

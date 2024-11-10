@@ -16,7 +16,23 @@ spec:
       containers:
       - name: {{ .Values.front.name }}
         image: "{{ .Values.front.image }}:{{ .Values.front.version }}"
+        # args: ["http://auth.test/", "demorealm", "reactclient", "http://grogu.test/"]
+        # args:
+        #   - --build-arg
+        #   - VITE_KEYCLOAK_URL=http://auth.test/
+        #   - VITE_KEYCLOAK_REALM=demorealm
+        #   - VITE_KEYCLOAK_CLIENT=reactclient
+        #   - VITE_REDIRECT_URL=http://grogu.test/
         ports:
         - containerPort: {{ .Values.front.containerPort }}
+        env:
+        - name: VITE_KEYCLOAK_URL
+          value: "http://auth.test/"
+        - name: VITE_KEYCLOAK_REALM
+          value: demorealm
+        - name: VITE_KEYCLOAK_CLIENT
+          value: reactclient
+        - name: VITE_REDIRECT_URL
+          value: http://grogu.test/
         resources:
           limits: {{ .Values.front.limits | toYaml | nindent 14 }}

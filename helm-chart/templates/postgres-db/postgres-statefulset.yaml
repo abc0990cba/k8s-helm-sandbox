@@ -1,7 +1,7 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
-  name: {{ .Values.postgres.name }}-deployment
+  name: {{ .Values.postgres.name }}-statefulset
   namespace: {{ .Values.namespace }}
   labels:
     app: {{ .Values.postgres.components }}

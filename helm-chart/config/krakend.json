@@ -63,7 +63,7 @@
       ]
     },
     {
-      "endpoint": "/v1/values",
+      "endpoint": "/v1/nodejs/private",
       "extra_config": {
         "auth/validator": {
             "operation_debug": true,
@@ -78,7 +78,7 @@
             "http://{{ .Values.nodejsBack.name }}-clusterip:{{ .Values.nodejsBack.servicePort }}"
           ],
           "is_collection": true,
-          "url_pattern": "/values",
+          "url_pattern": "/numbers",
           "mapping": {
             "collection": "data"
           }
@@ -101,14 +101,33 @@
       ]
     },
     {
-      "endpoint": "/v1/nodejs/public2",
+      "endpoint": "/v1/nodejs/fibonacci",
       "backend": [
         {
           "host": [
             "http://{{ .Values.nodejsBack.name }}-clusterip:{{ .Values.nodejsBack.servicePort }}"
           ],
+          "url_pattern": "/fibonacci"
+        }
+      ]
+    },
+    {
+      "endpoint": "/v1/golang/private",
+      "extra_config": {
+        "auth/validator": {
+            "operation_debug": true,
+            "alg": "{{ .Values.auth.alg }}",
+            "jwk_url": "{{ .Values.auth.jwkUrl }}",
+            "disable_jwk_security": true
+        }
+      },
+      "backend": [
+        {
+          "host": [
+             "http://{{ .Values.golangBack.name }}-clusterip:{{ .Values.golangBack.servicePort }}"
+          ],
           "is_collection": true,
-          "url_pattern": "/fibonacci",
+          "url_pattern": "/numbers",
           "mapping": {
             "collection": "data"
           }

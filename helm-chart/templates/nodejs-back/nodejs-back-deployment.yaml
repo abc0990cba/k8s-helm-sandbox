@@ -31,6 +31,10 @@ spec:
         env:
         - name: PORT
           value: {{ .Values.nodejsBack.containerPort | quote }}
+        - name: POSTGRES_PORT
+          value: {{ .Values.postgres.servicePort | quote }}
+        - name: POSTGRES_HOST
+          value: "{{ .Values.postgres.name }}-clusterip"
         livenessProbe:
           httpGet:
             path: /healthz
