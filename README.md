@@ -1,3 +1,5 @@
+![alt text](./diagram-as-code/fullstack_app.png)
+
 ### TODO
 
 - [x] helm
@@ -52,11 +54,17 @@ minikube addons enable default-storage-class
 minikube addons enable dashboard
 
 
+helm repo add kubernetes-dashboard 
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
 
+GPG_TTY=$(tty)
+export GPG_TTY
+
 # app launch
-helm secrets install ap ./helm-chart -f secrets.yaml     
+helm secrets install ap ./helm-chart -f secrets.yaml  
+
+passphrase: example1   
 
 # separate terminal
 sudo minikube tunnel
