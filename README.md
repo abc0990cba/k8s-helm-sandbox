@@ -61,6 +61,13 @@ helm repo update
 GPG_TTY=$(tty)
 export GPG_TTY
 
+# insert hosts 
+sudo nano /etc/hosts
+127.0.0.1 auth.test
+127.0.0.1 grogu.test
+127.0.0.1 grafana.test   
+127.0.0.1 prom.test
+
 # app launch
 helm secrets install ap ./helm-chart -f secrets.yaml  
 
