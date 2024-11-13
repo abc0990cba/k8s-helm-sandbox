@@ -1,11 +1,13 @@
+### Architecture
 ![alt text](./diagram-as-code/fullstack_app.png)
+![alt text](./diagram-as-code/fullstack_app_in_k8s_cluster.png)
 
 ### TODO
-
 - [x] helm
 - [x] react front
 - [x] postgres
 - [x] redis cache
+- [ ] migrate redis from deployment to statefulset
 - [x] node.js api
 - [x] golang api
 - [x] krakend api gateway
@@ -25,10 +27,17 @@
 - [x] horizontal pod autoscaling
 - [x] prometheus
 - [x] grafana
+- [x] connect redis to node.js
+- [ ] connect redis to golang
 - [x] metrics for node.js api
 - [ ] metrics for golang api
+- [x] hpa for node.js api
+- [ ] hpa for golang api
 - [ ] metrics for postgres
 - [ ] metrics for redis
+- [x] encrypt postgres secrets with PGP and SOPS
+- [ ] encrypt keycloak secrets with PGP and SOPS
+- [ ] encrypt redis secrets with PGP and SOPS
 
 #### Prerequisites
 - docker / docker desktop [setup](https://docs.docker.com/desktop/setup/install/mac-install/)
@@ -49,28 +58,37 @@ minikube addons enable metrics-server
 minikube addons enable ingress-dns
 minikube addons enable ingress
 minikube addons enable storage-provisioner
-minikube addons enable default-storage-class
-minikube addons enable default-storage-class
+minikube addons enable default-storageclass
 minikube addons enable dashboard
 
-
-helm repo add kubernetes-dashboard 
+# add helm repos
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
 
+# gpg envs
 GPG_TTY=$(tty)
 export GPG_TTY
 
 # insert hosts 
+# for app, iam, grafana, prometheus
 sudo nano /etc/hosts
 127.0.0.1 auth.test
 127.0.0.1 grogu.test
 127.0.0.1 grafana.test   
 127.0.0.1 prom.test
+ 
+# additional CustomResourceDefinition for service monitor
+kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/master/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
+
+# import secret key
+# ! attention: this file should not be store in git or any other public space
+# it is here only for demo purpose
+gpg --import demo-secret-key.asc
 
 # app launch
 helm secrets install ap ./helm-chart -f secrets.yaml  
 
+# passphrase for the secret above
 passphrase: example1   
 
 # separate terminal

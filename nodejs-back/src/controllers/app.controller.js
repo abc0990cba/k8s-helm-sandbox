@@ -32,8 +32,4 @@ export class AppController {
   metrics = async (req, res, next) => {
     res.send(config);
   }
-// app.get("/", async (req, res) => {
-//   const num = await redisClient.get("key");
-//   res.send(num);
-// });
 }

@@ -3,5 +3,6 @@
 
   brew install graphviz
 
-  python diagram.py
+  python base_diagram.py
+  python k8s_diagram.py
 ```
