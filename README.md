@@ -64,6 +64,7 @@ minikube addons enable dashboard
 # add helm repos
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
+helm dependency update
 
 # gpg envs
 GPG_TTY=$(tty)
