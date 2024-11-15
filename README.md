@@ -36,8 +36,7 @@
 - [ ] metrics for postgres
 - [ ] metrics for redis
 - [x] encrypt postgres secrets with PGP and SOPS
-- [ ] encrypt keycloak secrets with PGP and SOPS
-- [ ] encrypt redis secrets with PGP and SOPS
+- [x] encrypt keycloak secrets with PGP and SOPS
 ---
 ### Prerequisites
 - docker / docker desktop [setup](https://docs.docker.com/desktop/setup/install/mac-install/)
