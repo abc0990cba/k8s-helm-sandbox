@@ -1,7 +1,7 @@
 ### Architecture
 ![alt text](./diagram-as-code/fullstack_app.png)
 ![alt text](./diagram-as-code/fullstack_app_in_k8s_cluster.png)
-
+---
 ### TODO
 - [x] helm
 - [x] react front
@@ -38,7 +38,7 @@
 - [x] encrypt postgres secrets with PGP and SOPS
 - [ ] encrypt keycloak secrets with PGP and SOPS
 - [ ] encrypt redis secrets with PGP and SOPS
-
+---
 ### Prerequisites
 - docker / docker desktop [setup](https://docs.docker.com/desktop/setup/install/mac-install/)
 - minikube [setup](https://minikube.sigs.k8s.io/docs/start/?arch=%2Fmacos%2Farm64%2Fstable%2Fhomebrew)
@@ -47,7 +47,7 @@
 - gpg [setup](https://dev.to/zemse/setup-gpg-on-macos-2iib)
 - sops [setup](https://formulae.brew.sh/formula/sops)
 
-
+---
 ### Local launch for mac with docker desktop and minikube:
 
 ```bash
@@ -95,7 +95,7 @@ passphrase: example1
 # separate terminal
 sudo minikube tunnel
 ```
-
+---
 ### initial users configuration for keycloak
 
 1. go http://auth.test/
@@ -114,7 +114,7 @@ sudo minikube tunnel
   - switch off temporaryPassword
 ![alt text](assets/image-3.png)
 
-
+---
 ### check app work
   - go http://grogu.test/
   - check service work by fetching node.js and golang piblic/private endpoints
