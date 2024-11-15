@@ -39,7 +39,7 @@
 - [ ] encrypt keycloak secrets with PGP and SOPS
 - [ ] encrypt redis secrets with PGP and SOPS
 
-#### Prerequisites
+### Prerequisites
 - docker / docker desktop [setup](https://docs.docker.com/desktop/setup/install/mac-install/)
 - minikube [setup](https://minikube.sigs.k8s.io/docs/start/?arch=%2Fmacos%2Farm64%2Fstable%2Fhomebrew)
 - helm [setup](https://helm.sh/docs/intro/install/)
@@ -48,7 +48,7 @@
 - sops [setup](https://formulae.brew.sh/formula/sops)
 
 
-#### Local launch for mac with docker desktop and minikube:
+### Local launch for mac with docker desktop and minikube:
 
 ```bash
 minikube start --driver=docker --cni=calico
@@ -95,3 +95,27 @@ passphrase: example1
 # separate terminal
 sudo minikube tunnel
 ```
+
+### initial users configuration for keycloak
+
+1. go http://auth.test/
+2. insert keycloak admin credentials from secret
+   default:
+      username: admin
+      password: admin
+![alt text](assets/image.png)
+3. select `demorealm`
+![alt text](assets/image-1.png)
+4. add `demoname` with credentials
+  - add name
+  - switch on `emailVerified`
+![alt text](assets/image-2.png)
+  - add password
+  - switch off temporaryPassword
+![alt text](assets/image-3.png)
+
+
+### check app work
+  - go http://grogu.test/
+  - check service work by fetching node.js and golang piblic/private endpoints
+![alt text](assets/image-4.png)
