@@ -119,3 +119,12 @@ sudo minikube tunnel
   - go http://grogu.test/
   - check service work by fetching node.js and golang piblic/private endpoints
 ![alt text](assets/image-4.png)
+---
+#### Useful commands
+```bash
+# Update secrets
+helm secrets edit secrets.yaml
+
+# Upgrade helm release
+helm secrets upgrade ap ./helm-chart -f secrets.yaml
+```
