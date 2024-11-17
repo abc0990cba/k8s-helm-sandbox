@@ -4,6 +4,8 @@ import (
 	"golang-back/internal/model"
 	"golang-back/internal/repository"
 	"math/big"
+
+	"github.com/redis/go-redis/v9"
 )
 
 type Number interface {
@@ -20,9 +22,9 @@ type Service struct {
 	Number
 }
 
-func NewService(repos *repository.Repository) *Service {
+func NewService(repos *repository.Repository, cache *redis.Client) *Service {
 	return &Service{
-		Fibonacci: NewFibonacciService(),
+		Fibonacci: NewFibonacciService(cache),
 		Number:    NewNumberService(repos.Number),
 	}
 }

@@ -35,17 +35,29 @@ func (app *App) Run() {
 		Password: os.Getenv("POSTGRES_PASSWORD"),
 	})
 	if err != nil {
-		log.Fatalf("Failed initialization database: %s", err.Error())
+		log.Fatalf("Failed connecting to Postgres: %v", err)
+	} else {
+		log.Printf("Postgres successfully started on host=%s port=%s !!", os.Getenv("POSTGRES_HOST"), os.Getenv("POSTGRES_PORT"))
+	}
+
+	cache, err := config.NewRedisCache(config.CacheConfig{
+		Host: os.Getenv("REDIS_HOST"),
+		Port: os.Getenv("REDIS_PORT"),
+	})
+	if err != nil {
+		log.Fatalf("Failed connecting to Redis: %v", err)
+	} else {
+		log.Printf("Redis successfully started on host=%s port=%s !!", os.Getenv("REDIS_HOST"), os.Getenv("REDIS_PORT"))
 	}
 
 	repos := repository.NewRepository(db)
-	services := service.NewService(repos)
+	services := service.NewService(repos, cache)
 	handlers := handler.NewHandler(services)
 
 	server := new(Server)
 	go func() {
 		if err := server.Run(os.Getenv("PORT"), handlers.InitRoutes()); err != nil {
-			log.Fatalf("Error occured while running http server: %s", err.Error())
+			log.Fatalf("Error occurred while running http server: %s", err.Error())
 		}
 	}()
 
@@ -58,10 +70,10 @@ func (app *App) Run() {
 	log.Print("App Shutting Down")
 
 	if err := server.Shutdown(context.Background()); err != nil {
-		log.Errorf("Error occured on server shutting down: %s", err.Error())
+		log.Errorf("Error occurred on server shutting down: %s", err.Error())
 	}
 
 	if err := db.Close(); err != nil {
-		log.Errorf("Error occured on db connection close: %s", err.Error())
+		log.Errorf("Error occurred on db connection close: %s", err.Error())
 	}
 }

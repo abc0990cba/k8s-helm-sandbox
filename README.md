@@ -126,4 +126,8 @@ helm secrets edit secrets.yaml
 
 # Upgrade helm release
 helm secrets upgrade ap ./helm-chart -f secrets.yaml
+
+# Port-forward for local development
+kubectl port-forward {postgres-pod-name} 5432
+kubectl port-forward {redis-pod-name} 6379
 ```
