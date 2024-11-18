@@ -85,6 +85,18 @@ kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/ma
 # it is here only for demo purpose
 gpg --import demo-secret-key.asc
 
+# [Optional]
+# Enable Prometheus and grafana
+# Update ./helm-chart/values.yaml
+metrics
+  enabled: true
+
+# [Optional]
+# Enable stress test to check HPA
+# Update ./helm-chart/values.yaml
+loadGenerator
+  enabled: true
+
 # app launch
 helm secrets install ap ./helm-chart -f secrets.yaml  
 
@@ -130,4 +142,11 @@ helm secrets upgrade ap ./helm-chart -f secrets.yaml
 # Port-forward for local development
 kubectl port-forward {postgres-pod-name} 5432
 kubectl port-forward {redis-pod-name} 6379
+
+# build and push image to docker hub
+# docker build -t {username}/{image-name}:{tag} .
+# docker image push {username}/{image-name}:{tag}
+docker build -t mmko67/grogu-api:0.0.1 .
+docker push mmko67/grogu-api:0.0.1
+
 ```
