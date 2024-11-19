@@ -1,12 +1,13 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
-	"golang-back/internal/util"
-
 	"github.com/gin-gonic/gin"
+
+	"golang-back/internal/util"
 )
 
 func (h *Handler) getFibonacciSum(c *gin.Context) {
@@ -16,7 +17,13 @@ func (h *Handler) getFibonacciSum(c *gin.Context) {
 		return
 	}
 
-	fiboSum := h.services.Fibonacci.GetFibonacciSum(num)
+	ctx := c.Request.Context()
+
+	fiboSum, err := h.services.Fibonacci.GetFibonacciSum(ctx, num)
+	if err != nil {
+		util.NewErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Something went wrong for calculating sum for num=%d", num))
+		return
+	}
 
 	c.JSON(http.StatusOK, fiboSum)
 }

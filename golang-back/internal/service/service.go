@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/redis/go-redis/v9"
+	"golang.org/x/net/context"
 )
 
 type Number interface {
@@ -14,7 +15,7 @@ type Number interface {
 }
 
 type Fibonacci interface {
-	GetFibonacciSum(num int) *big.Int
+	GetFibonacciSum(context.Context, int) (*big.Int, error)
 }
 
 type Service struct {
