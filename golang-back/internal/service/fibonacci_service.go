@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log"
 	"math/big"
 
 	"github.com/redis/go-redis/v9"
@@ -21,17 +22,17 @@ func (s *FibonacciService) GetFibonacciSum(ctx context.Context, num int) (*big.I
 	cacheKey := fmt.Sprintf("fiboNum:%d", num)
 	cachedSum, err := s.cache.Get(ctx, cacheKey).Result()
 	if err == redis.Nil {
-		fmt.Printf("%s key does not exist in redis\n", cacheKey)
+		log.Printf("%s key does not exist in redis\n", cacheKey)
 	} else if err != nil {
-		fmt.Println("[error]: error get cache key=%s\n", cacheKey)
+		log.Println("[error]: error get cache key=%s", cacheKey)
 	} else {
 		num := new(big.Int)
 		num, ok := num.SetString(cachedSum, 10)
 		if ok {
-			fmt.Printf("return fibonacci sum from cache key=%s\n", cacheKey)
+			log.Printf("return fibonacci sum from cache key=%s\n", cacheKey)
 			return num, nil
 		} else {
-			fmt.Println("[error]: error bigInt.SetString() for cached Sum cast key=%s\n", cacheKey)
+			log.Println("[error]: error bigInt.SetString() for cached Sum cast key=%s", cacheKey)
 		}
 	}
 
@@ -50,7 +51,7 @@ func (s *FibonacciService) GetFibonacciSum(ctx context.Context, num int) (*big.I
 
 	err = s.cache.Set(ctx, cacheKey, a.String(), 0).Err()
 	if err != nil {
-		fmt.Printf("[error]: cache set error for key=%s\n", cacheKey)
+		log.Printf("[error]: cache set error for key=%s\n", cacheKey)
 		return nil, err
 	}
 
