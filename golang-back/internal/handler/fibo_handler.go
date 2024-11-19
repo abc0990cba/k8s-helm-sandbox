@@ -17,9 +17,7 @@ func (h *Handler) getFibonacciSum(c *gin.Context) {
 		return
 	}
 
-	ctx := c.Request.Context()
-
-	fiboSum, err := h.services.Fibonacci.GetFibonacciSum(ctx, num)
+	fiboSum, err := h.services.Fibonacci.GetFibonacciSum(c, num)
 	if err != nil {
 		util.NewErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Something went wrong for calculating sum for num=%d", num))
 		return

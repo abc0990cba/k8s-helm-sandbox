@@ -20,8 +20,14 @@ func (h *Handler) InitRoutes() *gin.Engine {
 		middleware.Timeout(FIBONACCI_MAX_TIMEOUT, apperror.NewServiceUnavailable()),
 		h.getFibonacciSum,
 	)
-	router.GET("/numbers/:num", h.create)
-	router.GET("/numbers", h.list)
+
+	numbers := router.Group("/numbers")
+	{
+		numbers.GET("/", h.list)
+		// TODO: make POST
+		numbers.GET("/:num", h.create)
+		numbers.GET("/primes/:limit", h.getPrimesAmount)
+	}
 
 	return router
 }
