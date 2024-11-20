@@ -3,9 +3,9 @@ package repository
 import (
 	"fmt"
 
-	"golang-back/internal/model"
-
 	"github.com/jmoiron/sqlx"
+
+	"golang-back/internal/model"
 )
 
 type FiboRepository struct {

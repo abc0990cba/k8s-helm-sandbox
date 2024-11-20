@@ -5,14 +5,14 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-
-	"golang-back/internal/config"
-	"golang-back/internal/handler"
-	"golang-back/internal/repository"
-	"golang-back/internal/service"
+	"time"
 
 	"github.com/joho/godotenv"
 	log "github.com/sirupsen/logrus"
+
+	"golang-back/internal/handler"
+	"golang-back/internal/repository"
+	"golang-back/internal/service"
 )
 
 type App struct{}
@@ -25,33 +25,17 @@ func loadEnvs() {
 }
 
 func (app *App) Run() {
+	log.Println("Starting server...")
+
 	loadEnvs()
 
-	db, err := config.NewPostgresDB(config.DBConfig{
-		Host:     os.Getenv("POSTGRES_HOST"),
-		Port:     os.Getenv("POSTGRES_PORT"),
-		Username: os.Getenv("POSTGRES_USER"),
-		DBName:   os.Getenv("POSTGRES_DB"),
-		Password: os.Getenv("POSTGRES_PASSWORD"),
-	})
+	ds, err := initDataSources()
 	if err != nil {
-		log.Fatalf("Failed connecting to Postgres: %v", err)
-	} else {
-		log.Printf("Postgres successfully started on host=%s port=%s !!", os.Getenv("POSTGRES_HOST"), os.Getenv("POSTGRES_PORT"))
+		log.Fatalf("Unable to initialize data sources: %v\n", err)
 	}
 
-	cache, err := config.NewRedisCache(config.CacheConfig{
-		Host: os.Getenv("REDIS_HOST"),
-		Port: os.Getenv("REDIS_PORT"),
-	})
-	if err != nil {
-		log.Fatalf("Failed connecting to Redis: %v", err)
-	} else {
-		log.Printf("Redis successfully started on host=%s port=%s !!", os.Getenv("REDIS_HOST"), os.Getenv("REDIS_PORT"))
-	}
-
-	repos := repository.NewRepository(db)
-	services := service.NewService(repos, cache)
+	repos := repository.NewRepository(ds.DB)
+	services := service.NewService(repos, ds.Cache)
 	handlers := handler.NewHandler(services)
 
 	server := new(Server)
@@ -69,11 +53,14 @@ func (app *App) Run() {
 
 	log.Print("App Shutting Down")
 
-	if err := server.Shutdown(context.Background()); err != nil {
-		log.Errorf("Error occurred on server shutting down: %s", err.Error())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := ds.close(); err != nil {
+		log.Fatalf("A problem occurred gracefully shutting down data sources: %v\n", err)
 	}
 
-	if err := db.Close(); err != nil {
-		log.Errorf("Error occurred on db connection close: %s", err.Error())
+	if err := server.Shutdown(ctx); err != nil {
+		log.Errorf("Error occurred on server shutting down: %s", err.Error())
 	}
 }

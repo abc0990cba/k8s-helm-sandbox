@@ -168,15 +168,16 @@
       "timeout": "5s",
       "output_encoding": "no-op",
       "input_query_strings":[
-        "*"
+        "parallel"
       ],
+      
       "backend": [
         {
           "encoding": "no-op",
           "host": [
              "http://{{ .Values.golangBack.name }}-clusterip:{{ .Values.golangBack.servicePort }}"
           ],
-          "url_pattern": "/numbers/primes/{num}"
+          "url_pattern": "/primes/{num}"
         }
       ]
     }
