@@ -28,7 +28,7 @@
 - [x] prometheus
 - [x] grafana
 - [x] connect redis to node.js
-- [ ] connect redis to golang
+- [x] connect redis to golang
 - [x] metrics for node.js api
 - [ ] metrics for golang api
 - [x] hpa for node.js api
@@ -148,5 +148,8 @@ kubectl port-forward {redis-pod-name} 6379
 # docker image push {username}/{image-name}:{tag}
 docker build -t mmko67/grogu-api:0.0.1 .
 docker push mmko67/grogu-api:0.0.1
+
+# edit krakend with design web tool
+https://designer.krakend.io/
 
 ```

@@ -148,6 +148,37 @@
           }
         }
       ]
+    },
+    {
+      "endpoint": "/v1/golang/public/fibonacci/{num}",
+      "timeout": "5s",
+      "output_encoding": "no-op",
+      "backend": [
+        {
+          "encoding": "no-op",
+          "host": [
+             "http://{{ .Values.golangBack.name }}-clusterip:{{ .Values.golangBack.servicePort }}"
+          ],
+          "url_pattern": "/fibonacci/{num}"
+        }
+      ]
+    },
+    {
+      "endpoint": "/v1/golang/public/primes/{num}",
+      "timeout": "5s",
+      "output_encoding": "no-op",
+      "input_query_strings":[
+        "*"
+      ],
+      "backend": [
+        {
+          "encoding": "no-op",
+          "host": [
+             "http://{{ .Values.golangBack.name }}-clusterip:{{ .Values.golangBack.servicePort }}"
+          ],
+          "url_pattern": "/numbers/primes/{num}"
+        }
+      ]
     }
   ]
 }

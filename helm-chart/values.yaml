@@ -60,7 +60,7 @@ nodejsBack:
 golangBack:
   name: golang-back
   image: mmko67/golang-back
-  version: 0.0.6
+  version: 0.0.7
   components: back
   servicePort: 8800
   containerPort: 8081
