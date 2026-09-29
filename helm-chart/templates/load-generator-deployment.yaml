@@ -7,7 +7,6 @@ metadata:
   labels:
     app: {{ .Values.loadGenerator.components }}
 spec:
-  replicas: 1
   selector:
     matchLabels:
       app: {{ .Values.loadGenerator.components }}

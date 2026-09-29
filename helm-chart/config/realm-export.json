@@ -2445,6 +2445,23 @@
   "keycloakVersion": "25.0.6",
   "userManagedAccessAllowed": false,
   "organizationsEnabled": false,
+  "users": [
+    {
+      "username": "{{ .Values.auth.seedUser.username }}",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "{{ .Values.auth.seedUser.email }}",
+      "firstName": "{{ .Values.auth.seedUser.firstName }}",
+      "lastName": "{{ .Values.auth.seedUser.lastName }}",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "{{ .Values.auth.seedUser.password }}",
+          "temporary": false
+        }
+      ]
+    }
+  ],
   "clientProfiles": {
     "profiles": []
   },

@@ -5,3 +5,11 @@ metadata:
   namespace: {{ .Values.namespace }}
   labels:
     app: {{ .Values.redis.name }}-components
+data:
+  redis.conf: |
+    bind 0.0.0.0
+    protected-mode no
+    port {{ .Values.redis.containerPort }}
+    dir /data/redis
+    appendonly yes
+    save 900 1

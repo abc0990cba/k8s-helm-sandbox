@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Tear the stack down. ./stop keeps the cluster; ./stop --purge deletes it.
+exec "$(cd "$(dirname "$0")" && pwd)/scripts/local-down.sh" "$@"

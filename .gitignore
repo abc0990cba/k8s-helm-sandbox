@@ -130,3 +130,9 @@ dist
 .pnp.*
 
 .DS_store
+
+# script runtime logs (tunnel etc.)
+.local/
+
+# zcode session tooling
+.zcode/

@@ -14,3 +14,6 @@ spec:
     - ReadWriteMany
   hostPath:
     path: /data/postgresql
+    # create the dir on a fresh node; without it the pod fails with
+    # "stat /data/postgresql: no such file or directory"
+    type: DirectoryOrCreate

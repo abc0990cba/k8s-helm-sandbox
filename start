@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# One-command local launch: minikube + addons + hosts + secrets + helm + tunnel + smoke tests.
+# See scripts/local-up.sh for flags (--metrics, --load-generator, --skip-smoke).
+exec "$(cd "$(dirname "$0")" && pwd)/scripts/local-up.sh" "$@"

@@ -5,15 +5,18 @@ metadata:
   namespace: {{ .Values.namespace }}
   labels:
     app: {{ .Values.nodejsBack.components }}
+    stack: {{ .Values.nodejsBack.stack }}
 spec:
   selector:
     matchLabels:
       app: {{ .Values.nodejsBack.components }}
+      stack: {{ .Values.nodejsBack.stack }}
   replicas: {{ .Values.nodejsBack.replicas }}
   template:
     metadata:
       labels:
         app: {{ .Values.nodejsBack.components }}
+        stack: {{ .Values.nodejsBack.stack }}
     spec:
       initContainers:
         {{- include "wait-for-postgres-db" . | indent 8}}

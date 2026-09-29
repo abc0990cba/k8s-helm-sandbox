@@ -14,3 +14,4 @@ spec:
     protocol: TCP
   selector:
     app: {{ .Values.golangBack.components }}
+    stack: {{ .Values.golangBack.stack }}

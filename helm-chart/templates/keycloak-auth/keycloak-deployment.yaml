@@ -15,6 +15,8 @@ spec:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/keycloak-auth/keycloak-configmap.yaml") . | sha256sum }}
     spec:
+      initContainers:
+        {{- include "wait-for-postgres-db" . | indent 8}}
       containers:
         - name: {{ .Values.auth.name }}
           image: "{{ .Values.auth.image }}:{{ .Values.auth.version }}"
@@ -30,22 +32,26 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.auth.name }}-secret
                   key: KEYCLOAK_ADMIN_PASSWORD
-            - name: DB_VENDOR
+            # Keycloak 25 (Quarkus) ignores the legacy WildFly DB_* vars; these are the supported ones
+            - name: KC_DB
               value: "postgres"
-            - name: DB_ADDR
+            - name: KC_DB_URL_HOST
               value: {{ .Values.postgres.name }}-clusterip
-            - name: DB_PORT
+            - name: KC_DB_URL_PORT
               value: {{ .Values.postgres.servicePort | quote }}
-            - name: DB_DATABASE
-              value: {{ .Values.postgres.servicePort | quote }}
-            - name: DB_SCHEMA
+            - name: KC_DB_URL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.name }}-secret
+                  key: POSTGRES_DB
+            - name: KC_DB_SCHEMA
               value: "public"
-            - name: DB_USER
+            - name: KC_DB_USERNAME
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.postgres.name }}-secret
                   key: POSTGRES_USER
-            - name: DB_PASSWORD
+            - name: KC_DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.postgres.name }}-secret

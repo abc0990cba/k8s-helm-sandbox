@@ -17,4 +17,7 @@ spec:
           app: {{ .Values.nodejsBack.components }}
     - podSelector:
         matchLabels:
+          app: {{ .Values.auth.components }}
+    - podSelector:
+        matchLabels:
           app: {{ .Values.postgres.migration.components }}

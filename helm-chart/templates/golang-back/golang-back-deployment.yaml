@@ -5,15 +5,18 @@ metadata:
   namespace: {{ .Values.namespace }}
   labels:
     app: {{ .Values.golangBack.components }}
+    stack: {{ .Values.golangBack.stack }}
 spec:
   selector:
     matchLabels:
       app: {{ .Values.golangBack.components }}
+      stack: {{ .Values.golangBack.stack }}
   replicas: {{ .Values.golangBack.replicas }}
   template:
     metadata:
       labels:
         app: {{ .Values.golangBack.components }}
+        stack: {{ .Values.golangBack.stack }}
     spec:
       initContainers:
         {{- include "wait-for-postgres-db" . | indent 8}}

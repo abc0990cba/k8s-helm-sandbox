@@ -49,6 +49,7 @@ nodejsBack:
   image: mmko67/grogu-api
   version: 0.1.6
   components: back
+  stack: nodejs
   servicePort: 9070
   containerPort: 8080
   replicas: 1
@@ -62,6 +63,7 @@ golangBack:
   image: mmko67/golang-back
   version: 0.0.8
   components: back
+  stack: golang
   servicePort: 8800
   containerPort: 8081
   replicas: 1
@@ -82,6 +84,13 @@ auth:
   realm:
     file:
       name: realm-export
+  # demo user imported with the realm on first Keycloak start
+  seedUser:
+    username: demo
+    password: demo
+    email: demo@example.test
+    firstName: Demo
+    lastName: User
   limits:
     memory: "800Mi"
     cpu: "400m"

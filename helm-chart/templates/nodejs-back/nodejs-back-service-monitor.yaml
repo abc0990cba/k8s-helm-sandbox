@@ -1,3 +1,6 @@
+{{- if .Values.metrics.enabled }}
+# only rendered when the prometheus-operator subchart (which owns the
+# ServiceMonitor CRD) is installed; otherwise helm install fails on the CRD
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
@@ -13,3 +16,4 @@ spec:
   - port: http-metrics
     interval: 10s
     path: /metrics
+{{- end }}
