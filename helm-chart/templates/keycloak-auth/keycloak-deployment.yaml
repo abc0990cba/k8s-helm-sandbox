@@ -56,6 +56,12 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.postgres.name }}-secret
                   key: POSTGRES_PASSWORD
+            {{- if .Values.tls.enabled }}
+            # behind ingress-nginx TLS termination: trust X-Forwarded-* so Keycloak
+            # builds browser-facing URLs with the correct scheme (argocd/ingress docs)
+            - name: KC_PROXY_HEADERS
+              value: edge
+            {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.auth.containerPort }}

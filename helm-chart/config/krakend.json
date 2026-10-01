@@ -24,7 +24,7 @@
     },
     "security/cors": {
       "allow_origins": [
-        "http://{{ .Values.host.app }}"
+        "{{ .Values.host.scheme }}://{{ .Values.host.app }}"
       ],
       "allow_methods": [
         "GET",

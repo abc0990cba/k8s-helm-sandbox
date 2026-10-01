@@ -26,13 +26,16 @@ spec:
         ports:
         - containerPort: {{ .Values.front.containerPort }}
         env:
+        # no-ops for a Vite SPA (VITE_* is baked into the image at build time —
+        # see react-front/Dockerfile and scripts/build-front.sh); kept values-driven
+        # so the rendered env matches the ingress hosts for documentation/debugging
         - name: VITE_KEYCLOAK_URL
-          value: "http://auth.test/"
+          value: "{{ .Values.host.scheme }}://{{ .Values.host.auth }}/"
         - name: VITE_KEYCLOAK_REALM
           value: demorealm
         - name: VITE_KEYCLOAK_CLIENT
           value: reactclient
         - name: VITE_REDIRECT_URL
-          value: http://grogu.test/
+          value: "{{ .Values.host.scheme }}://{{ .Values.host.app }}/"
         resources:
           limits: {{ .Values.front.limits | toYaml | nindent 14 }}

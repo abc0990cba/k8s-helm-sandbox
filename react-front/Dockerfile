@@ -6,15 +6,12 @@ COPY package.json .
 
 RUN npm install
 
-# ARG VITE_KEYCLOAK_URL
-# ARG VITE_KEYCLOAK_REALM
-# ARG VITE_KEYCLOAK_CLIENT
-# ARG VITE_REDIRECT_URL
-
-# ENV VITE_KEYCLOAK_URL=$VITE_KEYCLOAK_URL
-# ENV VITE_KEYCLOAK_REALM=$VITE_KEYCLOAK_REALM
-# ENV VITE_KEYCLOAK_CLIENT=$VITE_KEYCLOAK_CLIENT
-# ENV VITE_REDIRECT_URL=$VITE_REDIRECT_URL
+# Vite bakes VITE_* at build time — override per environment with --build-arg
+# (defaults reproduce the *.test minikube/LAN deployment; see scripts/build-front.sh)
+ARG VITE_KEYCLOAK_URL=http://auth.test/
+ARG VITE_KEYCLOAK_REALM=demorealm
+ARG VITE_KEYCLOAK_CLIENT=reactclient
+ARG VITE_REDIRECT_URL=http://grogu.test/
 
 COPY . .
 

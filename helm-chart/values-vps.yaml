@@ -1,0 +1,29 @@
+# VPS overlay — single-node k3s on a rented Ubuntu box, reached over the internet.
+# Applied by the ArgoCD Application gitops/apps/vps/ap.yaml via `./start vps`.
+#
+# BEFORE FIRST DEPLOY:
+#   1. Point DNS at the VPS IP (A records for all hosts below), or use the
+#      zero-cost sslip.io variant (see "sslip" comment) — Let's Encrypt needs
+#      publicly resolvable names, *.test cannot get certificates.
+#   2. Set tls.email (LE account + expiry notices).
+#   3. Run `scripts/build-front.sh <tag>` once and uncomment front.version below —
+#      the SPA bakes VITE_* auth URLs at build time, so a new host requires a new
+#      image or Keycloak logins will fail (APIs still work).
+host:
+  scheme: https
+  app: grogu.example.com        # TODO your app domain      (sslip alt: grogu.1-2-3-4.sslip.io)
+  auth: auth.example.com        # TODO your Keycloak domain (sslip alt: auth.1-2-3-4.sslip.io)
+  prometheus: prom.example.com  # TODO (only rendered when metrics.enabled=true)
+  grafana: grafana.example.com  # TODO (only rendered when metrics.enabled=true)
+
+tls:
+  enabled: true
+  clusterIssuer: letsencrypt-prod
+  email: ""                     # TODO your email for Let's Encrypt
+
+metrics:
+  enabled: false                # enable only on ≥ 8 GB VPS; then add the two hosts above to DNS
+
+# Uncomment after `scripts/build-front.sh <tag>` pushed the rebuilt image:
+# front:
+#   version: 0.4.0

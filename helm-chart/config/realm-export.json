@@ -642,10 +642,10 @@
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [
-        "http://grogu.test/"
+        "{{ .Values.host.scheme }}://{{ .Values.host.app }}/"
       ],
       "webOrigins": [
-        "http://grogu.test"
+        "{{ .Values.host.scheme }}://{{ .Values.host.app }}"
       ],
       "notBefore": 0,
       "bearerOnly": false,

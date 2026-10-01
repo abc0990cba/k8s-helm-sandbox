@@ -24,6 +24,24 @@ spec:
           envFrom:
             - secretRef:
                 name: "{{ .Values.postgres.name }}-secret"
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            # previously unbounded; sized to co-exist with the app stack on a small node
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
           volumeMounts:
             - mountPath: /var/lib/postgresql/data
               name: {{ .Values.postgres.name }}-data

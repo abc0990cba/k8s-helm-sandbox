@@ -1,3 +1,18 @@
 #!/usr/bin/env bash
-# Tear the stack down. ./stop keeps the cluster; ./stop --purge deletes it.
-exec "$(cd "$(dirname "$0")" && pwd)/scripts/local-down.sh" "$@"
+#
+# Tear a deployment down:
+#   ./stop            local Minikube release (as before; --purge deletes the cluster)
+#   ./stop lan|vps    delete the ArgoCD apps → cascades to all app resources
+#   ./stop lan|vps --purge   also k3s-uninstall the remote cluster
+set -euo pipefail
+DIR="$(cd "$(dirname "$0")" && pwd)"
+
+TARGET="${1:-local}"
+case "$TARGET" in
+  local)    exec "$DIR/scripts/local-down.sh" "${@:2}" ;;
+  lan|vps)  exec "$DIR/scripts/remote-down.sh" "$@" ;;
+  *)
+    echo "usage: ./stop [local|lan|vps] [--purge]" >&2
+    exit 1
+    ;;
+esac

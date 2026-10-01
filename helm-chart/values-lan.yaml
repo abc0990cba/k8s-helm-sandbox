@@ -1,0 +1,17 @@
+# LAN overlay — k3s on the VirtualBox VM (Windows host), reached over Wi-Fi.
+# Same *.test names as local Minikube: only the hosts files change
+# (see docs/DEPLOY-LAN-VIRTUALBOX.md). Applied by the ArgoCD Application
+# gitops/apps/lan/ap.yaml via `./start lan`; values match chart defaults and
+# are listed explicitly so this file alone describes the environment.
+host:
+  scheme: http
+  app: grogu.test
+  auth: auth.test
+  prometheus: prom.test
+  grafana: grafana.test
+
+tls:
+  enabled: false
+
+metrics:
+  enabled: false   # the ~5 Gi app stack + kube-prometheus-stack needs ≥ 10 GB VM RAM

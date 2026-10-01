@@ -1,0 +1,16 @@
+---
+- name: Apply cert-manager (manifest includes the CRDs)
+  ansible.builtin.command: >
+    k3s kubectl apply
+    -f https://github.com/cert-manager/cert-manager/releases/download/{{ cert_manager_version }}/cert-manager.yaml
+  register: cm_apply
+  changed_when: "'unchanged' not in cm_apply.stdout"
+
+- name: Wait for cert-manager deployments
+  ansible.builtin.command: >
+    k3s kubectl -n cert-manager rollout status deployment/{{ item }} --timeout=300s
+  loop:
+    - cert-manager
+    - cert-manager-webhook
+    - cert-manager-cainjector
+  changed_when: false

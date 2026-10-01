@@ -1,0 +1,4 @@
+# Run once on the control machine (MacBook):  ansible-galaxy collection install -r requirements.yml
+collections:
+  - name: community.general   # ufw module
+  - name: ansible.posix       # authorized_key module

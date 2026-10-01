@@ -1,0 +1,7 @@
+env_name: "vps"
+tls_enabled: true
+# TODO your wildcard-safe subdomain with an A record -> VPS IP (or argocd.1-2-3-4.sslip.io)
+argocd_domain: "argocd.example.com"
+cluster_issuer: "letsencrypt-prod"
+# opt-in offsite backups: define to enable the backups_offsite role (tag: backups)
+# backup_rclone_remote: "b2:my-backup-bucket"

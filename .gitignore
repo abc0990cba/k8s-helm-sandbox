@@ -134,5 +134,8 @@ dist
 # script runtime logs (tunnel etc.)
 .local/
 
+# real deployment targets (machine IPs) — commit only inventory.sample.ini
+ansible/inventory.ini
+
 # zcode session tooling
 .zcode/

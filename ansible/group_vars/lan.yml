@@ -1,0 +1,3 @@
+env_name: "lan"
+tls_enabled: false
+argocd_domain: "argocd.test"   # add to every machine's hosts file next to grogu.test/auth.test

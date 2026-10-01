@@ -1,0 +1,15 @@
+# vars for every remote target
+repo_url: "https://github.com/abc0990cba/k8s-helm-sandbox.git"
+repo_branch: "main"
+
+# pinned upstream versions — bump deliberately, not by accident
+k3s_channel: "stable"
+ingress_nginx_tag: "controller-v1.12.1"
+cert_manager_version: "v1.16.2"
+argocd_version: "v2.13.3"
+helm_version: "v3.16.4"
+sops_version: "v3.9.1"
+helm_secrets_version: "v4.6.2"
+
+# hardened sudo user created by the common role (no-lockout: pubkey is installed first)
+deploy_user: "deploy"

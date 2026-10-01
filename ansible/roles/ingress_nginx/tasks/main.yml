@@ -1,0 +1,20 @@
+---
+- name: Apply ingress-nginx (LoadBalancer service — k3s ServiceLB binds host :80/:443)
+  ansible.builtin.command: >
+    k3s kubectl apply
+    -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/{{ ingress_nginx_tag }}/deploy/static/provider/cloud/deploy.yaml
+  register: ingress_apply
+  changed_when: "'unchanged' not in ingress_apply.stdout"
+
+- name: Wait for the controller to roll out
+  ansible.builtin.command: >
+    k3s kubectl -n ingress-nginx rollout status deployment/ingress-nginx-controller --timeout=300s
+  register: ingress_rollout
+  changed_when: false
+
+- name: Confirm ports 80/443 are bound on this host (ServiceLB)
+  ansible.builtin.wait_for:
+    port: "{{ item }}"
+    host: "{{ ansible_host | default(inventory_hostname) }}"
+    timeout: 120
+  loop: ["80", "443"]

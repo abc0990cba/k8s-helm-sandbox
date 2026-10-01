@@ -1,0 +1,136 @@
+---
+# ArgoCD installs itself, then deploys the app chart from git (app-of-apps).
+# SOPS secrets are decrypted by a helm-secrets sidecar plugin on argocd-repo-server
+# (templates/repo-server-helm-secrets.yaml.j2) using the repo's committed demo GPG key.
+
+- name: Make sure .local/ exists on the controller (kubeconfig + ArgoCD admin password)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.file:
+    path: "{{ playbook_dir }}/../.local"
+    state: directory
+    mode: "700"
+
+- name: Ensure the argocd namespace exists
+  ansible.builtin.shell: |
+    set -o pipefail
+    k3s kubectl create namespace argocd --dry-run=client -o yaml | k3s kubectl apply -f -
+  changed_when: false
+
+- name: Install ArgoCD (pinned upstream manifest)
+  ansible.builtin.command: >
+    k3s kubectl apply -n argocd
+    -f https://raw.githubusercontent.com/argoproj/argo-cd/{{ argocd_version }}/manifests/install.yaml
+  register: argocd_install
+  changed_when: "'unchanged' not in argocd_install.stdout"
+
+- name: Wait for ArgoCD core components
+  ansible.builtin.command: >
+    k3s kubectl -n argocd rollout status {{ item }} --timeout=300s
+  loop:
+    - deployment/argocd-server
+    - deployment/argocd-repo-server
+    - deployment/argocd-redis
+    - statefulset/argocd-application-controller
+  changed_when: false
+
+- name: Serve the UI plain HTTP behind ingress-nginx (TLS terminates at the ingress)
+  ansible.builtin.shell: |
+    set -o pipefail
+    k3s kubectl -n argocd patch configmap argocd-cmd-params-cm \
+      --type merge -p '{"data":{"server.insecure":"true"}}'
+  changed_when: false
+  notify: restart argocd-server
+
+- name: Lock the UI down to admin (no anonymous access)
+  ansible.builtin.shell: |
+    set -o pipefail
+    k3s kubectl -n argocd patch configmap argocd-rbac-cm \
+      --type merge -p '{"data":{"policy.default":"role:none"}}'
+  changed_when: false
+
+# ---- SOPS decryption for the app chart (helm-secrets CMP sidecar) -----------
+
+- name: Stage the demo GPG key on the target
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../demo-secret-key.asc"
+    dest: /tmp/demo-secret-key.asc
+    mode: "600"
+
+- name: Give the repo-server the SOPS key as a Secret
+  ansible.builtin.shell: |
+    set -o pipefail
+    k3s kubectl -n argocd create secret generic argocd-sops-gpg \
+      --from-file=demo-secret-key.asc=/tmp/demo-secret-key.asc \
+      --dry-run=client -o yaml | k3s kubectl apply -f -
+
+- name: Patch argocd-repo-server with the helm-secrets CMP sidecar
+  ansible.builtin.shell: |
+    set -o pipefail
+    k3s kubectl apply -f - <<'EOF'
+    {{ lookup('ansible.builtin.template', playbook_dir ~ '/roles/argocd/templates/repo-server-helm-secrets.yaml.j2') }}
+    EOF
+  register: repo_patch
+  changed_when: "'configured' in repo_patch.stdout or 'created' in repo_patch.stdout"
+
+- name: Wait for the patched repo-server
+  ansible.builtin.command: >
+    k3s kubectl -n argocd rollout status deployment/argocd-repo-server --timeout=300s
+  changed_when: false
+
+# ---- project, ingress, app-of-apps ------------------------------------------
+
+- name: Apply the AppProject (source/destination/cluster-resource restrictions)
+  ansible.builtin.shell: |
+    set -o pipefail
+    k3s kubectl apply -f - <<'EOF'
+    {{ lookup('ansible.builtin.template', playbook_dir ~ '/roles/argocd/templates/project.yaml.j2') }}
+    EOF
+  changed_when: false
+
+- name: Apply the ArgoCD ingress ({{ argocd_domain }})
+  ansible.builtin.shell: |
+    set -o pipefail
+    k3s kubectl apply -f - <<'EOF'
+    {{ lookup('ansible.builtin.template', playbook_dir ~ '/roles/argocd/templates/argocd-ingress.yaml.j2') }}
+    EOF
+  changed_when: false
+
+- name: Generate & persist the ArgoCD admin password on the Mac (once per environment)
+  ansible.builtin.set_fact:
+    argocd_admin_pw: "{{ lookup('ansible.builtin.password', playbook_dir ~ '/../.local/argocd-' ~ env_name ~ '-admin-pw length=24 chars=ascii_letters,digits') }}"
+  no_log: true
+
+- name: Hash the admin password (bcrypt via htpasswd installed by the common role)
+  ansible.builtin.shell: |
+    set -o pipefail
+    htpasswd -bnBC 10 "" '{{ argocd_admin_pw }}' | tr -d ':\n'
+  register: argocd_admin_hash
+  changed_when: false
+  no_log: true
+
+- name: Set the admin password on argocd-secret
+  ansible.builtin.shell: |
+    set -o pipefail
+    k3s kubectl -n argocd patch secret argocd-secret --type merge \
+      -p '{"stringData":{"admin.password":"{{ argocd_admin_hash.stdout }}","admin.passwordMtime":"{{ ansible_date_time.iso8601 }}"}}'
+  no_log: true
+  changed_when: false
+
+- name: Apply the root Application (app-of-apps → gitops/apps/{{ env_name }})
+  ansible.builtin.shell: |
+    set -o pipefail
+    k3s kubectl apply -f - <<'EOF'
+    {{ lookup('ansible.builtin.template', playbook_dir ~ '/roles/argocd/templates/root-app.yaml.j2') }}
+    EOF
+  changed_when: false
+
+- name: Wait for the app to become Healthy/Synced (first run pulls every image — up to ~25 min)
+  ansible.builtin.command: >
+    k3s kubectl -n argocd get application ap
+    -o jsonpath={.status.health.status}/{.status.sync.status}
+  register: app_state
+  until: app_state.stdout == 'Healthy/Synced'
+  retries: 150
+  delay: 10
+  changed_when: false

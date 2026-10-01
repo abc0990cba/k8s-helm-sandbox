@@ -1,0 +1,139 @@
+---
+- name: Verify the admin public key exists on the controller (before any SSH hardening)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.stat:
+    path: "{{ admin_pubkey_path }}"
+  register: admin_pubkey
+
+- name: Refuse to harden SSH without a working key
+  ansible.builtin.assert:
+    that: admin_pubkey.stat.exists
+    msg: >-
+      {{ admin_pubkey_path }} not found on this Mac — generate one (ssh-keygen -t ed25519)
+      or point -e admin_pubkey_path=... at the right file. SSH password login gets
+      disabled by this role, so the key must be in place first.
+
+- name: Base packages
+  ansible.builtin.apt:
+    name:
+      - curl
+      - ca-certificates
+      - gnupg
+      - ufw
+      - fail2ban
+      - unattended-upgrades
+      - apache2-utils   # htpasswd — used by the argocd role to bcrypt the admin password
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Safe package upgrades (unattended-upgrades does the rest daily)
+  ansible.builtin.apt:
+    upgrade: safe
+
+- name: Time sync (k3s certificates hate clock drift)
+  ansible.builtin.systemd:
+    name: systemd-timesyncd
+    enabled: true
+    state: started
+
+- name: Disable swap (kubelet requirement)
+  ansible.builtin.command: swapoff -a
+  changed_when: false
+  failed_when: false
+
+- name: Keep swap off across reboots
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    regexp: '\sswap\s'
+    state: absent
+
+# ---- admin user (key first, hardening second) -------------------------------
+
+- name: Create the {{ deploy_user }} user
+  ansible.builtin.user:
+    name: "{{ deploy_user }}"
+    shell: /bin/bash
+    groups: sudo
+    append: true
+
+- name: Install the admin public key
+  ansible.posix.authorized_key:
+    user: "{{ deploy_user }}"
+    key: "{{ lookup('ansible.builtin.file', admin_pubkey_path) }}"
+
+- name: Passwordless sudo for {{ deploy_user }} (pet project convenience)
+  ansible.builtin.copy:
+    content: "{{ deploy_user }} ALL=(ALL) NOPASSWD:ALL\n"
+    dest: "/etc/sudoers.d/{{ deploy_user }}"
+    mode: "0440"
+    validate: "visudo -cf %s"
+
+- name: SSH — disable password authentication (key is installed)
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?\s*PasswordAuthentication\s'
+    line: 'PasswordAuthentication no'
+    validate: "/usr/sbin/sshd -t -f %s"
+  notify: restart ssh
+
+- name: SSH — no root password logins (keys still allowed)
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?\s*PermitRootLogin\s'
+    line: 'PermitRootLogin prohibit-password'
+    validate: "/usr/sbin/sshd -t -f %s"
+  notify: restart ssh
+
+# ---- firewall: only what the stack needs; 6443 stays closed (scripts tunnel it) ----
+
+- name: UFW default deny incoming
+  community.general.ufw:
+    default: deny
+    direction: incoming
+
+- name: UFW default allow outgoing
+  community.general.ufw:
+    default: allow
+    direction: outgoing
+
+- name: UFW allow SSH (before enabling the firewall!)
+  community.general.ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+
+- name: UFW allow HTTP/HTTPS (ingress + Let's Encrypt HTTP-01)
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop: ["80", "443"]
+
+- name: UFW enable
+  community.general.ufw:
+    state: enabled
+
+- name: fail2ban — protect sshd
+  ansible.builtin.copy:
+    dest: /etc/fail2ban/jail.local
+    content: |
+      [sshd]
+      enabled = true
+      bantime = 1h
+      findtime = 10m
+      maxretry = 5
+  notify: restart fail2ban
+
+- name: fail2ban enabled
+  ansible.builtin.systemd:
+    name: fail2ban
+    enabled: true
+    state: started
+
+- name: unattended-upgrades enabled
+  ansible.builtin.systemd:
+    name: unattended-upgrades
+    enabled: true
+  failed_when: false   # unit name differs across releases; apt timers do the work

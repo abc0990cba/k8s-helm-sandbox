@@ -1,0 +1,13 @@
+---
+# Bootstrap any target:  ansible-playbook -i inventory.ini site.yml --limit vps
+# (scripts/remote-up.sh runs exactly this; every role is idempotent and re-runnable)
+- name: Bootstrap k3s + ingress + ArgoCD
+  hosts: all
+  become: true
+  roles:
+    - { role: common, tags: ["common", "bootstrap"] }
+    - { role: k3s, tags: ["k3s", "bootstrap"] }
+    - { role: ingress_nginx, tags: ["ingress", "bootstrap"] }
+    - { role: cert_manager, tags: ["certs", "bootstrap"], when: tls_enabled | bool }
+    - { role: argocd, tags: ["argocd", "bootstrap"] }
+    - { role: backups_offsite, tags: ["backups"], when: backup_rclone_remote is defined }

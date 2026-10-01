@@ -1,0 +1,60 @@
+---
+# Opt-in offsite backups (tag: backups, runs only when backup_rclone_remote is defined).
+# The chart's pg_dump CronJob already writes dated dumps to the postgres PVC
+# (local-path on this node). This role ships them off-box hourly with rclone.
+# Recovery story for a pet-scale VPS: the cluster is disposable (this playbook
+# rebuilds it), the data is what matters — restore = recreate release, then
+# psql the newest dump back in.
+
+- name: Install rclone
+  ansible.builtin.apt:
+    name: rclone
+    state: present
+
+- name: Check for an rclone remote configuration
+  ansible.builtin.command: rclone listremotes
+  register: rclone_remotes
+  changed_when: false
+
+- name: Refuse to enable offsite backups without a configured remote
+  ansible.builtin.assert:
+    that: "'{{ backup_rclone_remote }}' in rclone_remotes.stdout"
+    msg: >-
+      rclone remote {{ backup_rclone_remote }} is not configured on this host.
+      Run `rclone config` as root first (e.g. a Backblaze B2 or S3 remote),
+      or remove backup_rclone_remote from ansible/group_vars/vps.yml.
+
+- name: Install the offsite copy service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/grogu-offsite-backup.service
+    content: |
+      [Unit]
+      Description=Ship postgres dumps off-box (rclone)
+
+      [Service]
+      Type=oneshot
+      # shell wrapper: systemd does not expand the pvc-* glob itself
+      ExecStart=/bin/sh -c 'exec /usr/bin/rclone copy --max-age 48h --transfers 4 /var/lib/rancher/k3s/storage/pvc-*_default_postgres-pvc "{{ backup_rclone_remote }}:grogu-postgres-backups"'
+  notify: systemd daemon reload
+
+- name: Install the hourly timer
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/grogu-offsite-backup.timer
+    content: |
+      [Unit]
+      Description=Hourly offsite postgres backup
+
+      [Timer]
+      OnCalendar=hourly
+      Persistent=true
+
+      [Install]
+      WantedBy=timers.target
+  notify: systemd daemon reload
+
+- name: Enable the timer
+  ansible.builtin.systemd:
+    name: grogu-offsite-backup.timer
+    enabled: true
+    state: started
+    daemon_reload: true

@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: ap
+  namespace: argocd
+spec:
+  description: k8s-helm-sandbox full-stack app ({{ env_name }})
+  sourceRepos:
+    - "{{ repo_url }}"
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: default
+    - server: https://kubernetes.default.svc
+      namespace: argocd
+  # cluster-scoped resources the chart is allowed to manage
+  clusterResourceWhitelist:
+    - group: ""
+      kind: PersistentVolume
+    - group: cert-manager.io
+      kind: ClusterIssuer
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+  namespaceResourceBlacklist:
+    - group: ""
+      kind: ResourceQuota
+    - group: ""
+      kind: LimitRange

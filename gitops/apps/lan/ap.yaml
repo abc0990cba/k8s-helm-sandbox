@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ap
+  namespace: argocd
+  finalizers:
+    # deleting the Application also deletes everything it created (PV/PVC included —
+    # the Postgres data itself survives on the host at /data/postgresql)
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: ap
+  source:
+    repoURL: https://github.com/abc0990cba/k8s-helm-sandbox.git
+    targetRevision: main
+    path: helm-chart
+    plugin:
+      name: helm-secrets
+      env:
+        # word-split by the plugin's sh; secrets.yaml lives at the repo root
+        - name: HELM_VALUES
+          value: "-f ../secrets.yaml -f values-lan.yaml"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 10m

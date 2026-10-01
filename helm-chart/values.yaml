@@ -18,6 +18,16 @@ host:
   app: grogu.test
   prometheus: prom.test
   grafana: grafana.test
+  # scheme used in browser-facing URLs: Keycloak redirect URIs (realm-export),
+  # KrakenD CORS and the react-front env vars — flip to https together with tls.enabled
+  scheme: http
+
+# TLS terminates at the ingress-nginx controller. Requires cert-manager in the
+# cluster (ansible roles: cert_manager) and a reachable Let's Encrypt endpoint.
+tls:
+  enabled: false
+  clusterIssuer: letsencrypt-prod
+  email: ""   # Let's Encrypt account email — the ClusterIssuer renders only when set
 
 gateway:
   name: krakend-gateway
