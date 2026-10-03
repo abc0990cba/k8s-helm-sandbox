@@ -17,7 +17,7 @@ then open [http://grogu.test/](http://grogu.test/) and log in with the pre-seede
 
 Detailed, always-current description: [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
 Guide for LLM/coding agents working with this repo: [AGENTS.md](./AGENTS.md).
-One command per environment — `./start` (Minikube on this Mac), `./start lan` (VirtualBox VM on the Wi-Fi), `./start vps` (VPS + TLS), all deployed via Ansible + ArgoCD: [docs/DEPLOY-VPS-ARGOCD.md](./docs/DEPLOY-VPS-ARGOCD.md), [docs/DEPLOY-LAN-VIRTUALBOX.md](./docs/DEPLOY-LAN-VIRTUALBOX.md), [gitops/README.md](./gitops/README.md).
+One command per environment — `./start` (Minikube on this Mac), `./start lan` (VirtualBox VM on the Wi-Fi), `./start vps` (VPS + TLS), all deployed via Ansible + ArgoCD: [docs/RUN.md](./docs/RUN.md) is the launch guide for all three, with the deep dives in [docs/DEPLOY-VPS-ARGOCD.md](./docs/DEPLOY-VPS-ARGOCD.md), [docs/DEPLOY-LAN-VIRTUALBOX.md](./docs/DEPLOY-LAN-VIRTUALBOX.md), [gitops/README.md](./gitops/README.md).
 
 ---
 
@@ -78,8 +78,8 @@ The script is **idempotent** — run it again at any time and it repairs/resumes
 ./start --metrics          # + Prometheus & Grafana (kube-prometheus-stack subchart)
 ./start --load-generator   # + busybox load generator to watch the HPA scale
 ./start --skip-smoke       # skip the automated end-to-end checks
-./stop                     # helm uninstall + stop the tunnel (cluster is kept)
-./stop --purge             # also delete the whole minikube cluster
+./start --check-only       # preflight checks only, changes nothing
+./start --reset            # delete the minikube profile first (clean slate)
 make status                # what is running right now
 ```
 
@@ -89,6 +89,7 @@ make status                # what is running right now
 - **A pod is stuck**: `make status`, then `kubectl describe pod <name>`.
 - **First run is slow**: the minikube VM plus several GB of images are downloaded (10–20 min). Later runs take minutes.
 - **sudo prompts**: `/etc/hosts` (first run) and `minikube tunnel` (every start — it must run as root). Both are asked once per run.
+- **`./start` fails at `minikube start` after an interrupted run (Ctrl-C)**: the profile is likely corrupted. The script detects it, shows the real error (`.local/minikube-start.log`), deletes the broken profile and recreates the cluster automatically; demo data is re-seeded. To force it: `./start --reset`. See [docs/RUN.md](./docs/RUN.md) for details.
 - **Keycloak behaves like it forgot changes made in the admin UI**: in `start-dev` mode with a fresh database the realm is re-imported from `helm-chart/config/realm-export.json` on a wiped cluster; UI-made changes live in Postgres and survive pod restarts, but not `./stop --purge` (that wipes the whole VM).
 
 <details>

@@ -5,10 +5,16 @@
 #   ./start lan      k3s in the VirtualBox VM on the Wi-Fi LAN — Ansible + ArgoCD
 #   ./start vps      k3s on the VPS with TLS               — Ansible + ArgoCD
 #
-# Flags pass through: local (--metrics, --load-generator, --skip-smoke),
-# remote (--skip-bootstrap, --skip-smoke). See docs/ for the full guides.
+# Flags pass through: local (--metrics, --load-generator, --skip-smoke,
+# --check-only, --reset), remote (--skip-bootstrap, --skip-smoke). See docs/ for
+# the full guides.
 set -euo pipefail
 DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# "./start --metrics" (flag first) is shorthand for "./start local --metrics"
+if [ $# -gt 0 ] && [ "${1#-}" != "$1" ]; then
+  set -- local "$@"
+fi
 
 TARGET="${1:-local}"
 case "$TARGET" in

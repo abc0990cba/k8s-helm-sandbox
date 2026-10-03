@@ -17,7 +17,7 @@ Pet project: a full-stack demo app deployed to Kubernetes through one Helm chart
 | `scripts/remote-up.sh`, `scripts/remote-down.sh`, `scripts/remote-env.sh` | the `lan`/`vps` engine (sourced helpers live in remote-env.sh: inventory parsing, ssh tunnel 16443→6443, kubeconfig, smoke). |
 | `ansible/site.yml` + roles | the remote bootstrap (common/k3s/ingress_nginx/cert_manager/argocd/backups_offsite). Pinned upstream versions in `ansible/group_vars/all.yml`. |
 
-Docs: `docs/ARCHITECTURE.md` (topology, flows, known issues), `docs/DEPLOY-VPS-ARGOCD.md` (VPS + ArgoCD flow, day-2, costs), `docs/DEPLOY-LAN-VIRTUALBOX.md` (VirtualBox VM provisioning + manual walkthrough), `gitops/README.md` (GitOps practices), `readme.md` (user-facing).
+Docs: `docs/RUN.md` (launch guide for all three environments — prerequisites, flags, self-repair, teardown), `docs/ARCHITECTURE.md` (topology, flows, known issues), `docs/DEPLOY-VPS-ARGOCD.md` (VPS + ArgoCD flow, day-2, costs), `docs/DEPLOY-LAN-VIRTUALBOX.md` (VirtualBox VM provisioning + manual walkthrough), `gitops/README.md` (GitOps practices), `readme.md` (user-facing).
 
 ## Repo map
 

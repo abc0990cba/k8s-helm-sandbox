@@ -12,6 +12,8 @@
 #   --load-generator  enable the busybox load generator (HPA stress test)
 #   --check-only      run preflight checks and exit
 #   --skip-smoke      skip the end-to-end smoke tests
+#   --reset           delete the minikube profile first (clean slate; wipes
+#                     in-cluster demo data, it is re-seeded on start)
 #
 # Env overrides (optional): SOPS_PASSPHRASE, SEED_USER, SEED_PASS, REALM
 #
@@ -21,11 +23,17 @@
 #   * To make SOPS decryption non-interactive, the demo key passphrase is
 #     preset in gpg-agent (requires `allow-preset-passphrase` in
 #     ~/.gnupg/gpg-agent.conf — appended once by this script).
+#   * If `minikube start` fails because the profile is corrupted (typical
+#     after Ctrl-C mid-run: empty /etc/kubernetes/pki, kubelet crash-looping),
+#     the script says so, deletes the broken profile and recreates the cluster
+#     automatically. In-cluster demo data (postgres hostPath PV) is wiped and
+#     re-seeded by the migration job. `./start --reset` forces the same.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOG_DIR="$REPO_DIR/.local"
 TUNNEL_LOG="$LOG_DIR/tunnel.log"
+MK_LOG="$LOG_DIR/minikube-start.log"
 RELEASE="ap"
 CHART_DIR="$REPO_DIR/helm-chart"
 SOPS_FILE="$REPO_DIR/secrets.yaml"
@@ -41,12 +49,14 @@ ENABLE_METRICS=false
 ENABLE_LOADGEN=false
 CHECK_ONLY=false
 SKIP_SMOKE=false
+RESET=false
 for arg in "$@"; do
   case "$arg" in
     --metrics)        ENABLE_METRICS=true ;;
     --load-generator) ENABLE_LOADGEN=true ;;
     --check-only)     CHECK_ONLY=true ;;
     --skip-smoke)     SKIP_SMOKE=true ;;
+    --reset)          RESET=true ;;
     *) echo "Unknown flag: $arg"; exit 1 ;;
   esac
 done
@@ -67,6 +77,11 @@ die()     { printf '%s  ✘ %s%s\n' "$C_R" "$*" "$C_0"; exit 1; }
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
+# remember the command about to run, so the ERR trap can name it;
+# clear it on success (a failure exits before the clear, so the trap
+# always names the command that actually failed)
+mark() { LAST_CMD="$*"; }
+
 # kubectl fallback: minikube ships its own kubectl
 if have kubectl; then
   K() { kubectl "$@"; }
@@ -82,11 +97,15 @@ ensure_sudo() {
 
 cleanup_on_error() {
   local rc=$?
-  printf '\n%s✘ failed at: %s (line %d)%s\n' "$C_R" "${LAST_CMD:-unknown}" "${BASH_LINENO[0]:-0}" "$C_0" >&2 || true
+  local ln="${BASH_LINENO[0]:-0}"
+  local what="${LAST_CMD:-$(sed -n "${ln}p" "${BASH_SOURCE[0]}" 2>/dev/null | sed 's/^[[:space:]]*//')}"
+  printf '\n%s✘ failed at: %s (line %d)%s\n' "$C_R" "${what:-unknown}" "$ln" "$C_0" >&2 || true
   printf 'Hints:\n' >&2
   printf '  * re-run ./start — it is idempotent and resumes where it stopped\n' >&2
   printf '  * pod problems:  make status   (or: kubectl get pods)\n' >&2
+  printf '  * minikube log:  %s\n' "$MK_LOG" >&2
   printf '  * tunnel log:    %s\n' "$TUNNEL_LOG" >&2
+  printf '  * still stuck:   ./start --reset  (wipes the cluster, re-seeds demo data)\n' >&2
   exit "$rc"
 }
 LAST_CMD=""
@@ -127,6 +146,15 @@ if [ "$CHECK_ONLY" = true ]; then
 fi
 
 # ------------------------------------------------------ 2. minikube + addons
+if [ "$RESET" = true ]; then
+  step "--reset: deleting the minikube profile for a clean slate"
+  warn "in-cluster state is wiped (postgres hostPath PV — demo data is re-seeded by the migration job)"
+  mark "minikube delete -p minikube"
+  minikube delete -p minikube >/dev/null 2>&1 || true
+  LAST_CMD=""
+  pass "profile deleted"
+fi
+
 if ! minikube status -p minikube 2>/dev/null | grep -q "host: Running"; then
   step "Starting minikube cluster (docker driver, calico CNI)"
   # size the VM for this chart: its pods request ~5Gi RAM / ~2.6 CPU in total.
@@ -155,7 +183,25 @@ if ! minikube status -p minikube 2>/dev/null | grep -q "host: Running"; then
     warn "docker VM has only ${DOCKER_MEM_MB}MB — minikube sized to ${MEM_GB}g; the chart requests ~5Gi and pods may not all fit"
   fi
   info "minikube resources: ${MEM_GB}g RAM, ${CPU} CPUs"
-  minikube start --driver=docker --cni=calico --memory="${MEM_GB}g" --cpus="${CPU}" 2>&1 | tail -3
+  # full output goes to $MK_LOG (it is the first place to look when start fails);
+  # pipefail in the if-condition gives us minikube's exit code without killing the script
+  if ! minikube start --driver=docker --cni=calico --memory="${MEM_GB}g" --cpus="${CPU}" 2>&1 | tee "$MK_LOG"; then
+    step "minikube start failed — the real error (full log: $MK_LOG):"
+    grep -E 'Exiting due|error validating|returned an error|Failed to start|E[0-9]{4}' "$MK_LOG" | sed 's/^\* //' | sort -u | head -8 >&2 || true
+    warn "this usually means the existing profile is corrupted (e.g. Ctrl-C during an earlier ./start left the node half-wiped)"
+    warn "auto-repair: deleting the broken minikube profile and recreating the cluster from scratch"
+    warn "in-cluster state is wiped (postgres hostPath PV — demo data is re-seeded by the migration job)"
+    mark "minikube delete -p minikube (auto-repair)"
+    minikube delete -p minikube >>"$MK_LOG" 2>&1 || true
+    LAST_CMD=""
+    mark "minikube start (after auto-repair)"
+    if ! minikube start --driver=docker --cni=calico --memory="${MEM_GB}g" --cpus="${CPU}" >>"$MK_LOG" 2>&1; then
+      tail -n 25 "$MK_LOG" >&2
+      die "minikube start failed even after a profile reset — full log: $MK_LOG"
+    fi
+    LAST_CMD=""
+    pass "cluster recreated after profile reset"
+  fi
 else
   step "Minikube cluster already running — reusing it"
 fi
@@ -166,6 +212,21 @@ for addon in metrics-server ingress ingress-dns storage-provisioner default-stor
   minikube addons enable "$addon" >/dev/null 2>&1 && pass "addon: $addon" || warn "addon $addon failed (may already be enabled)"
 done
 
+# the ingress addon ships an admission webhook with failurePolicy=Fail: until the
+# controller and its certgen jobs are up, every Ingress object is rejected — a
+# helm run straight after cluster creation fails with "failed calling webhook
+# validate.nginx.ingress.kubernetes.io ... connection refused"
+info "waiting for the ingress-nginx controller + admission webhook to become ready"
+mark "kubectl wait: ingress-nginx controller/certgen jobs ready"
+K wait --for=condition=available --timeout=300s deployment/ingress-nginx-controller -n ingress-nginx >/dev/null 2>&1 \
+  || warn "ingress-nginx controller not Available within 5 min — the helm step may fail on Ingress validation; re-run ./start"
+for j in ingress-nginx-admission-create ingress-nginx-admission-patch; do
+  K wait --for=condition=complete --timeout=300s "job/$j" -n ingress-nginx >/dev/null 2>&1 \
+    || warn "job $j not complete — the helm step may fail on Ingress validation; re-run ./start"
+done
+LAST_CMD=""
+pass "ingress controller and admission webhook ready"
+
 # ------------------------------------------------------------ 3. /etc/hosts
 step "Checking /etc/hosts entries"
 NEED_HOSTS=()
@@ -175,7 +236,9 @@ done
 if [ ${#NEED_HOSTS[@]} -gt 0 ]; then
   ensure_sudo "appending ${NEED_HOSTS[*]} to /etc/hosts"
   for h in "${NEED_HOSTS[@]}"; do
+    mark "sudo tee -a /etc/hosts (add $h)"
     printf '127.0.0.1 %s\n' "$h" | sudo -n tee -a /etc/hosts >/dev/null
+    LAST_CMD=""
     pass "added: 127.0.0.1 $h"
   done
 else
@@ -186,7 +249,9 @@ fi
 step "Setting up SOPS/GPG decryption (non-interactive)"
 export GPG_TTY="${GPG_TTY:-$(tty 2>/dev/null || true)}"
 if ! gpg --list-secret-keys 2>/dev/null | grep -qi "$SOPS_FINGERPRINT"; then
+  mark "gpg --import $GPG_KEY_FILE"
   gpg --batch --pinentry-mode loopback --passphrase "$SOPS_PASSPHRASE" --import "$GPG_KEY_FILE"
+  LAST_CMD=""
   pass "imported demo key $SOPS_FINGERPRINT"
 else
   pass "demo key already imported"
@@ -223,19 +288,24 @@ HELM_SET=()
 # (the ${arr[@]+...} idiom avoids bash-3.2 "unbound variable" on empty arrays)
 HELM_ARGS=(-f "$SOPS_FILE" --wait --timeout 15m ${HELM_SET[@]+"${HELM_SET[@]}"})
 if helm secrets version >/dev/null 2>&1; then
+  mark "helm secrets upgrade --install $RELEASE"
   helm secrets upgrade --install "$RELEASE" "$CHART_DIR" "${HELM_ARGS[@]}" 2>&1 | grep -vE '^\[helm-secrets\]' | tail -5
+  LAST_CMD=""
 else
   # plugin missing or incompatible with this helm — hand it decrypted values ourselves
   warn "helm-secrets plugin not usable — decrypting secrets.yaml to a temp file for this install"
   DEC=$(mktemp -t secrets-decrypted)
   sops -d "$SOPS_FILE" > "$DEC"
+  mark "helm upgrade --install $RELEASE"
   helm upgrade --install "$RELEASE" "$CHART_DIR" -f "$DEC" "${HELM_ARGS[@]:1}" 2>&1 | tail -5
+  LAST_CMD=""
   rm -f "$DEC"
 fi
 pass "helm release '$RELEASE' deployed"
 
 # --------------------------------------------------------- 6. wait for pods
 step "Waiting for all pods to be Ready"
+mark "kubectl get pods (waiting for all pods to become Ready)"
 # "Completed" counts as ready: the postgres migration Job finishes and exits 0
 DEADLINE=$(( $(date +%s) + 420 ))
 while :; do
@@ -244,6 +314,7 @@ while :; do
     | awk '{split($2,a,"/"); if ($3=="Completed" || (a[1]==a[2] && a[2]>0 && $3=="Running")) n++} END {print n+0}')
   if [ "$TOTAL" -gt 0 ] && [ "$READY" -eq "$TOTAL" ]; then
     pass "all $TOTAL pods Ready"
+    LAST_CMD=""
     break
   fi
   if [ "$(date +%s)" -gt "$DEADLINE" ]; then
@@ -342,10 +413,12 @@ else
   smoke "keycloak realm       " auth.test  "/realms/$REALM"      200
 
   info "requesting access token for seeded user '$SEED_USER' (password grant)"
+  mark "curl: request JWT from Keycloak for user '$SEED_USER'"
   TOKEN_URL=$(URL_AT auth.test "/realms/$REALM/protocol/openid-connect/token")
   TOKEN_JSON=$(CURL_AT --max-time 10 \
     -d "grant_type=password&client_id=reactclient&username=$SEED_USER&password=$SEED_PASS" \
     "$TOKEN_URL")
+  LAST_CMD=""
   TOKEN=$(printf '%s' "$TOKEN_JSON" | sed -n 's/.*"access_token":"\([^"]*\)".*/\1/p')
   [ -n "$TOKEN" ] || die "no access token from Keycloak — seeded user login failed. Response: $(printf '%s' "$TOKEN_JSON" | head -c 200)"
   pass "seeded user login OK (JWT obtained)"
