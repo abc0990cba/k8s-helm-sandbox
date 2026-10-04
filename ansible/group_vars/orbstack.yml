@@ -7,6 +7,12 @@ tls_enabled: false   # *.test cannot get real certificates; flip to true to
                      # with tls.* + sslip.io-style domains)
 argocd_domain: "argocd.test"   # add to the Mac's hosts file next to grogu.test if you want the ArgoCD UI
 
+# TEMPORARY: rehearse without GitHub — ArgoCD syncs from a local bare repo
+# served by `git daemon` on this Mac (scripts/orbstack-local-git.sh manages it:
+# creates .local/gitops-origin.git, pushes the current branch, starts the daemon).
+# Remove/comment this line (and push to origin) to switch back to GitHub.
+repo_url: "git://192.168.139.3:9418/gitops-origin.git"
+
 # the machine's host key isn't in known_hosts until the first connect — accept it
 # instead of failing under ansible's BatchMode (orbstack-create.sh also does a
 # verified handshake, this is the belt to that suspenders)
