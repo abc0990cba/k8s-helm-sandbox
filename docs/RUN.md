@@ -111,6 +111,10 @@ make status       # cluster / pods / release / tunnel / URLs
 
 ## 2. OrbStack — the remote pipeline, rehearsed on this Mac (`./start orbstack`)
 
+> **Как это всё работает внутри** — куда едет ваш коммит, что такое Helm и
+> ArgoCD, как правка кнопки доезжает до браузера: пошаговый разбор для
+> начинающих — [HOW-DEPLOY-WORKS-RU.md](./HOW-DEPLOY-WORKS-RU.md) (на русском).
+
 A real Ubuntu 24.04 machine (same distro as the lan VM and the VPS) running
 inside [OrbStack](https://orbstack.dev) on this Mac, bootstrapped by the same
 Ansible playbook as the other remote targets: hardening → k3s → ingress-nginx
