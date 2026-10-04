@@ -169,18 +169,30 @@ entry (`127.0.0.1 grogu.test …`) decides who answers:
 
 ### Testing your changes (the fast loop)
 
-- **Chart changes** (`helm-chart/`): commit + `git push` — ArgoCD auto-syncs
-  and redeploys, exactly like on lan/vps. Watch: `make status TARGET=orbstack`.
+- **GitHub-free rehearsal (default here):** the orbstack target syncs ArgoCD
+  from a **local git remote on this Mac** — no GitHub involved. Commit your
+  changes, then:
+  ```bash
+  ./scripts/orbstack-local-git.sh    # push local main -> the local remote
+  ```
+  ArgoCD auto-syncs within ~3 minutes (or `./start orbstack` to force). The
+  script manages everything: the bare repo (`.local/gitops-origin.git`,
+  gitignored), a `git daemon` systemd unit inside the machine (serving it via
+  OrbStack's `/mnt/mac` mount — the repo never crosses the network), and the
+  firewall rule. Switch back to GitHub by commenting `repo_url` in
+  `ansible/group_vars/orbstack.yml`, reverting the commits marked TEMPORARY,
+  and pushing to origin.
 - **Ansible/role changes** (`ansible/`): just `./start orbstack` again — the
   playbook is idempotent.
-- **No-git fast path for chart experiments**: apply the chart directly, same
-  as the manual lan path:
+- **No-git fast path for chart experiments** (bypasses ArgoCD entirely):
+  apply the chart directly, same as the manual lan path:
   ```bash
   source scripts/remote-env.sh && load_target orbstack && open_tunnel
   export KUBECONFIG="$PWD/.local/kubeconfig-orbstack.yaml"
   helm secrets upgrade --install ap ./helm-chart -f secrets.yaml -f helm-chart/values-orbstack.yaml --wait
   ```
-  (ArgoCD's self-heal may revert drift on its next sync — push when it works.)
+  (ArgoCD's self-heal may revert drift on its next sync — use the local-git
+  loop above for anything you want to keep.)
 
 ### Teardown
 
