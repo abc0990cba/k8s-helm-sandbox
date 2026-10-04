@@ -17,7 +17,7 @@ then open [http://grogu.test/](http://grogu.test/) and log in with the pre-seede
 
 Detailed, always-current description: [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
 Guide for LLM/coding agents working with this repo: [AGENTS.md](./AGENTS.md).
-One command per environment — `./start` (Minikube on this Mac), `./start lan` (VirtualBox VM on the Wi-Fi), `./start vps` (VPS + TLS), all deployed via Ansible + ArgoCD: [docs/RUN.md](./docs/RUN.md) is the launch guide for all three, with the deep dives in [docs/DEPLOY-VPS-ARGOCD.md](./docs/DEPLOY-VPS-ARGOCD.md), [docs/DEPLOY-LAN-VIRTUALBOX.md](./docs/DEPLOY-LAN-VIRTUALBOX.md), [gitops/README.md](./gitops/README.md).
+One command per environment — `./start` (Minikube on this Mac), `./start orbstack` (Ubuntu machine in OrbStack on this Mac — full rehearsal of the remote pipeline), `./start lan` (VirtualBox VM on the Wi-Fi), `./start vps` (VPS + TLS), the remote three deployed via Ansible + ArgoCD: [docs/RUN.md](./docs/RUN.md) is the launch guide for all of them, with the deep dives in [docs/DEPLOY-VPS-ARGOCD.md](./docs/DEPLOY-VPS-ARGOCD.md), [docs/DEPLOY-LAN-VIRTUALBOX.md](./docs/DEPLOY-LAN-VIRTUALBOX.md), [gitops/README.md](./gitops/README.md).
 
 ---
 

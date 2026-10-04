@@ -5,16 +5,22 @@ Minikube on this Mac), `./start lan` (k3s in a VirtualBox VM on your Wi-Fi) and
 `./start vps` (k3s on a rented VPS with TLS). All three end with the same
 automated smoke tests; when they pass, the app is up.
 
-| | **local** (default) | **lan** | **vps** |
-|---|---|---|---|
-| Command | `./start` | `./start lan` | `./start vps` |
-| Cluster | Minikube (docker driver) on this Mac | k3s in an Ubuntu VM (VirtualBox) | k3s on a rented Linux box |
-| Deployed by | `helm secrets upgrade --install` directly from this repo | Ansible bootstrap → **ArgoCD deploys the chart from git** | same as lan, plus TLS |
-| App URL | [http://grogu.test/](http://grogu.test/) (via `minikube tunnel`) | `http://grogu.test/` (hosts file → VM IP) | `https://<your-domain>/` (Let's Encrypt) |
-| Re-deploy after changes | `make upgrade` | `git push` (ArgoCD auto-syncs) | `git push` |
-| Tear down | `./stop` (cluster kept) / `./stop --purge` (cluster deleted) | `./stop lan` / `./stop lan --purge` | `./stop vps` / `./stop vps --purge` |
-| Status | `make status` | `make status TARGET=lan` | `make status TARGET=vps` |
-| Deep dive | this page + readme.md | [DEPLOY-LAN-VIRTUALBOX.md](./DEPLOY-LAN-VIRTUALBOX.md) | [DEPLOY-VPS-ARGOCD.md](./DEPLOY-VPS-ARGOCD.md) |
+| | **local** (default) | **orbstack** | **lan** | **vps** |
+|---|---|---|---|---|
+| Command | `./start` | `./start orbstack` | `./start lan` | `./start vps` |
+| Cluster | Minikube (docker driver) on this Mac | k3s in an Ubuntu 24.04 machine in OrbStack, on this Mac | k3s in an Ubuntu VM (VirtualBox) | k3s on a rented Linux box |
+| Deployed by | `helm secrets upgrade --install` directly from this repo | Ansible bootstrap → **ArgoCD deploys the chart from git** | same as orbstack | same as orbstack, plus TLS |
+| App URL | [http://grogu.test/](http://grogu.test/) (via `minikube tunnel`) | `http://grogu.test/` (same hosts entries as local) | `http://grogu.test/` (hosts file → VM IP) | `https://<your-domain>/` (Let's Encrypt) |
+| Re-deploy after changes | `make upgrade` | `git push` (ArgoCD auto-syncs) | `git push` | `git push` |
+| Tear down | `./stop` (cluster kept) / `./stop --purge` (cluster deleted) | `./stop orbstack` / `--purge` | `./stop lan` / `./stop lan --purge` | `./stop vps` / `./stop vps --purge` |
+| Status | `make status` | `make status TARGET=orbstack` | `make status TARGET=lan` | `make status TARGET=vps` |
+| Deep dive | this page + readme.md | this page + [DEPLOY-LAN-VIRTUALBOX.md](./DEPLOY-LAN-VIRTUALBOX.md) | [DEPLOY-LAN-VIRTUALBOX.md](./DEPLOY-LAN-VIRTUALBOX.md) | [DEPLOY-VPS-ARGOCD.md](./DEPLOY-VPS-ARGOCD.md) |
+
+What orbstack is **for**: it runs the *exact* lan/vps pipeline — Ansible
+bootstrap (hardening → k3s → ingress-nginx → ArgoCD + helm-secrets) → ArgoCD
+syncing the chart **from git** → the same smoke suite — against a Linux
+machine that lives on your Mac. Test every ansible/gitops/chart change there
+in minutes, without touching Windows/VirtualBox or renting anything.
 
 ---
 
@@ -102,7 +108,102 @@ make status       # cluster / pods / release / tunnel / URLs
 
 ---
 
-## 2. LAN — k3s in a VirtualBox VM (`./start lan`)
+## 2. OrbStack — the remote pipeline, rehearsed on this Mac (`./start orbstack`)
+
+A real Ubuntu 24.04 machine (same distro as the lan VM and the VPS) running
+inside [OrbStack](https://orbstack.dev) on this Mac, bootstrapped by the same
+Ansible playbook as the other remote targets. If `./start orbstack` is green,
+`./start lan` / `./start vps` will behave the same — the only differences are
+the machine's address and (on vps) TLS.
+
+### Prerequisites (once)
+
+```bash
+brew install orbstack          # then start OrbStack.app once
+brew install ansible kubectl helm
+ansible-galaxy collection install -r ansible/requirements.yml
+ssh-keygen -t ed25519          # if you don't have ~/.ssh/id_ed25519 yet
+```
+
+### One-time machine provisioning
+
+```bash
+./scripts/orbstack-create.sh
+```
+
+Idempotent; creates/repairs: the `k3s-orbstack` machine (4 CPUs / 8 GB),
+sshd inside it + your public key, and the `[orbstack]` group in
+`ansible/inventory.ini` (created from the sample if you don't have one).
+Re-run it if the machine's IP ever changes.
+
+### Launch
+
+```bash
+./start orbstack               # full: ansible bootstrap → k3s → ingress-nginx
+                               # → ArgoCD → smoke tests
+./start orbstack --skip-bootstrap   # cluster already bootstrapped
+./start orbstack --skip-smoke
+```
+
+First run: ~10 min bootstrap + the ArgoCD app pulling every image (up to
+~25 min). Later runs: the playbook is idempotent and `ok`s through in a
+couple of minutes. The k8s API is reached through an ssh tunnel
+(`127.0.0.1:16443 → machine:6443`) that the script manages; smoke tests run
+via `curl --resolve`, so **no hosts-file edits are needed**.
+
+### Browser access — switching between local and orbstack
+
+Both local Minikube and orbstack serve `grogu.test`, so the `/etc/hosts`
+entry (`127.0.0.1 grogu.test …`) decides who answers:
+
+- **local is answering** (default): browse as usual while `./start`'s tunnel runs.
+- **switch to orbstack**: stop the local stack first (`./stop` — frees port
+  80 and the hosts mapping), then `./start orbstack`. If OrbStack's
+  localhost port-forwarding is active, `grogu.test` keeps resolving via
+  `127.0.0.1` with nothing to edit; otherwise point the hosts entries at the
+  machine IP (`orb list` shows it):
+  `sed -i '' 's/^127.0.0.1 grogu.test/192.168.139.195 grogu.test/' /etc/hosts`
+  (same for `auth.test`).
+- **switch back**: `./stop orbstack`, then `./start` — it restores the
+  `127.0.0.1` mapping and the tunnel.
+
+### Testing your changes (the fast loop)
+
+- **Chart changes** (`helm-chart/`): commit + `git push` — ArgoCD auto-syncs
+  and redeploys, exactly like on lan/vps. Watch: `make status TARGET=orbstack`.
+- **Ansible/role changes** (`ansible/`): just `./start orbstack` again — the
+  playbook is idempotent.
+- **No-git fast path for chart experiments**: apply the chart directly, same
+  as the manual lan path:
+  ```bash
+  source scripts/remote-env.sh && load_target orbstack && open_tunnel
+  export KUBECONFIG="$PWD/.local/kubeconfig-orbstack.yaml"
+  helm secrets upgrade --install ap ./helm-chart -f secrets.yaml -f helm-chart/values-orbstack.yaml --wait
+  ```
+  (ArgoCD's self-heal may revert drift on its next sync — push when it works.)
+
+### Teardown
+
+```bash
+./stop orbstack               # delete the ArgoCD apps (cascades the workloads)
+./stop orbstack --purge       # also k3s-uninstall inside the machine
+orb delete k3s-orbstack       # remove the machine itself (frees the disk)
+# then drop the [orbstack] block from ansible/inventory.ini
+```
+
+### Notes
+
+- TLS is off (`tls_enabled: false` in `ansible/group_vars/orbstack.yml`) —
+  `*.test` can't get real certificates. To rehearse the vps TLS branch, set
+  it to `true` and give `helm-chart/values-orbstack.yaml` sslip.io-style
+  domains + `tls.email`.
+- The machine participates in ArgoCD GitOps fully: it clones the GitHub repo,
+  decrypts `secrets.yaml` in-cluster via the helm-secrets sidecar (the
+  committed demo key), and self-heals — `git push` is the redeploy button.
+
+---
+
+## 3. LAN — k3s in a VirtualBox VM (`./start lan`)
 
 Same stack, same chart, same `*.test` names — running on a Linux VM and driven
 from the Mac over Wi-Fi. Deploy is **GitOps**: Ansible bootstraps the VM, then
@@ -111,13 +212,22 @@ ArgoCD deploys the chart from this git repository (helm-secrets decrypts
 
 ### Prerequisites (once)
 
-1. The Ubuntu 24.04 VM exists and is reachable over ssh — provision it
-   following steps 1–5 of
-   [DEPLOY-LAN-VIRTUALBOX.md](./DEPLOY-LAN-VIRTUALBOX.md).
+1. The Ubuntu 24.04 VM exists and is reachable over ssh — provision it on the
+   Windows/VirtualBox host following steps 1–5 of
+   [DEPLOY-LAN-VIRTUALBOX.md](./DEPLOY-LAN-VIRTUALBOX.md). That guide's
+   **chapter 2 is a four-checkpoint network pre-flight** (MacBook → Windows
+   host → VM → ports 22/6443/80/443) — run it *before* installing anything,
+   so reachability problems surface while they're still cheap to fix.
+   **No router access (or don't want to touch the home network)?** §2.7 of
+   the same guide is the chapter for you: in the common case the router needs
+   zero changes (the VM just takes a static IP), and even a client-isolated
+   Wi-Fi is bypassed with a direct USB-Ethernet cable or a NAT+port-forward
+   setup — both end in the exact same `./start lan`.
 2. On the Mac: `brew install ansible kubectl helm` and
    `ansible-galaxy collection install -r ansible/requirements.yml`.
 3. `ansible/inventory.ini` lists the VM (copy from
-   `ansible/inventory.sample.ini`; the real file is gitignored).
+   `ansible/inventory.sample.ini`; the real file is gitignored — the sample
+   also shows the variants for the cable and NAT setups).
 4. Your Mac's hosts file points `grogu.test auth.test` at the **VM's IP** (the
    guide shows the lines; unlike local, they are **not** managed by `./start`).
 
@@ -149,7 +259,7 @@ targeting the VM — they are hardwired to local Minikube.
 
 ---
 
-## 3. VPS — k3s + TLS (`./start vps`)
+## 4. VPS — k3s + TLS (`./start vps`)
 
 Identical flow to `lan`, against a rented Ubuntu box, with cert-manager +
 Let's Encrypt in front:

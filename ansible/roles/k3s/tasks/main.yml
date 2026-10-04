@@ -11,13 +11,11 @@
     INSTALL_K3S_CHANNEL: "{{ k3s_channel }}"
 
 - name: Wait for the node to be Ready
+  # kubectl wait instead of a jsonpath filter: ansible's command module
+  # shlex-strips the quotes from a jsonpath string literal, which kubectl
+  # (v1.34+ jsonpath parser) then rejects as "unrecognized identifier"
   ansible.builtin.command: >
-    k3s kubectl get node {{ ansible_hostname }}
-    -o jsonpath={.status.conditions[?(@.type=="Ready")].status}
-  register: node_ready
-  until: node_ready.stdout == "True"
-  retries: 60
-  delay: 5
+    k3s kubectl wait --for=condition=Ready node/{{ ansible_hostname }} --timeout=600s
   changed_when: false
 
 - name: Read the kubeconfig (server stays 127.0.0.1:6443 — scripts reach it via an SSH tunnel)

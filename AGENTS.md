@@ -1,23 +1,24 @@
 # AGENTS.md — guide for coding agents working in this repo
 
-Pet project: a full-stack demo app deployed to Kubernetes through one Helm chart. Authored ~2024, revived 2026. Deploys to three environments through one interface — `./start` (Minikube on the Mac, helm-direct), `./start lan` (k3s in a VirtualBox VM on the Wi-Fi) and `./start vps` (k3s on a VPS with TLS), the remote two via Ansible + ArgoCD GitOps. Everything deployable lives in `helm-chart/`; the application source lives next to it in this repo.
+Pet project: a full-stack demo app deployed to Kubernetes through one Helm chart. Authored ~2024, revived 2026. Deploys to four environments through one interface — `./start` (Minikube on the Mac, helm-direct), `./start orbstack` (k3s in an OrbStack Ubuntu machine on the Mac — full rehearsal of the remote pipeline), `./start lan` (k3s in a VirtualBox VM on the Wi-Fi) and `./start vps` (k3s on a VPS with TLS), the remote three via Ansible + ArgoCD GitOps. Everything deployable lives in `helm-chart/`; the application source lives next to it in this repo.
 
 ## Entry points
 
 | Command | What it does |
 |---|---|
-| `./start` | **The one command, per environment.** `./start` = local Minikube (idempotent: minikube + addons → `/etc/hosts` → SOPS/GPG setup → `helm secrets upgrade --install ap` → wait Ready → `minikube tunnel` → automated E2E smoke tests incl. JWT-authenticated private endpoints). Flags: `--metrics`, `--load-generator`, `--skip-smoke`, `--check-only`. |
-| `./start lan` / `./start vps` | remote targets (k3s): Ansible bootstrap (hardening → k3s → ingress-nginx → cert-manager (vps) → ArgoCD) → ArgoCD deploys the chart **from git** (helm-secrets CMP sidecar decrypts SOPS in-cluster) → wait `Healthy/Synced` → same smoke suite via `curl --resolve`. Flags: `--skip-bootstrap`, `--skip-smoke`. Targets + IPs come from `ansible/inventory.ini` (gitignored; sample committed). |
-| `./stop` / `./stop lan` / `./stop vps` | local: `helm uninstall ap` + stop tunnel (`--purge` deletes minikube). remote: delete ArgoCD apps (cascades); `--purge` also k3s-uninstall. |
-| `make status` | local cluster / pods / release / tunnel / URLs; `make status TARGET=lan\|vps` for remote (short-lived ssh tunnel). |
-| `make upgrade` | re-deploy chart after changes (local helm upgrade --install). On lan/vps the redeploy mechanism is `git push` (ArgoCD auto-sync). |
+| `./start` | **The one command, per environment.** `./start` = local Minikube (idempotent: minikube + addons → `/etc/hosts` → SOPS/GPG setup → `helm secrets upgrade --install ap` → wait Ready → `minikube tunnel` → automated E2E smoke tests incl. JWT-authenticated private endpoints). Flags: `--metrics`, `--load-generator`, `--skip-smoke`, `--check-only`, `--reset`. |
+| `./start orbstack` / `./start lan` / `./start vps` | remote-style targets (k3s; orbstack = local OrbStack machine, created once by `scripts/orbstack-create.sh`): Ansible bootstrap (hardening → k3s → ingress-nginx → cert-manager (vps) → ArgoCD) → ArgoCD deploys the chart **from git** (helm-secrets CMP sidecar decrypts SOPS in-cluster) → wait `Healthy/Synced` → same smoke suite via `curl --resolve`. Flags: `--skip-bootstrap`, `--skip-smoke`. Targets + IPs come from `ansible/inventory.ini` (gitignored; sample committed). |
+| `./stop` / `./stop orbstack` / `./stop lan` / `./stop vps` | local: `helm uninstall ap` + stop tunnel (`--purge` deletes minikube). remote: delete ArgoCD apps (cascades); `--purge` also k3s-uninstall. |
+| `make status` | local cluster / pods / release / tunnel / URLs; `make status TARGET=orbstack\|lan\|vps` for remote (short-lived ssh tunnel). |
+| `make upgrade` | re-deploy chart after changes (local helm upgrade --install). On orbstack/lan/vps the redeploy mechanism is `git push` (ArgoCD auto-sync). |
 | `make secrets-edit` | edit SOPS-encrypted `secrets.yaml`. After editing, remote pods need `kubectl rollout restart` (env-secrets are read at boot). |
 | `scripts/build-front.sh <tag> [values-file]` | rebuild + push the react image with per-environment `VITE_*` baked (needed when the app host isn't `grogu.test`). |
 | `scripts/local-up.sh`, `scripts/local-down.sh`, `scripts/status.sh` | what `./start`, `./stop`, `make status` call locally — read before changing launch behavior. |
-| `scripts/remote-up.sh`, `scripts/remote-down.sh`, `scripts/remote-env.sh` | the `lan`/`vps` engine (sourced helpers live in remote-env.sh: inventory parsing, ssh tunnel 16443→6443, kubeconfig, smoke). |
-| `ansible/site.yml` + roles | the remote bootstrap (common/k3s/ingress_nginx/cert_manager/argocd/backups_offsite). Pinned upstream versions in `ansible/group_vars/all.yml`. |
+| `scripts/remote-up.sh`, `scripts/remote-down.sh`, `scripts/remote-env.sh` | the `orbstack`/`lan`/`vps` engine (sourced helpers live in remote-env.sh: inventory parsing incl. `ansible_port`, ssh tunnel 16443→6443, kubeconfig, smoke). |
+| `scripts/orbstack-create.sh` | one-time provisioning of the OrbStack rehearsal machine (create ubuntu:24.04, install sshd + key, write the `[orbstack]` inventory group). Idempotent. |
+| `ansible/site.yml` + roles | the remote bootstrap (common/k3s/ingress_nginx/cert_manager/argocd/backups_offsite). Pinned upstream versions in `ansible/group_vars/all.yml`; `ansible/ansible.cfg` is applied explicitly by remote-up.sh (bash shell for the roles' `pipefail`, accept-new host keys). |
 
-Docs: `docs/RUN.md` (launch guide for all three environments — prerequisites, flags, self-repair, teardown), `docs/ARCHITECTURE.md` (topology, flows, known issues), `docs/DEPLOY-VPS-ARGOCD.md` (VPS + ArgoCD flow, day-2, costs), `docs/DEPLOY-LAN-VIRTUALBOX.md` (VirtualBox VM provisioning + manual walkthrough), `gitops/README.md` (GitOps practices), `readme.md` (user-facing).
+Docs: `docs/RUN.md` (launch guide for all four environments — prerequisites, flags, self-repair, teardown), `docs/ARCHITECTURE.md` (topology, flows, known issues), `docs/DEPLOY-VPS-ARGOCD.md` (VPS + ArgoCD flow, day-2, costs), `docs/DEPLOY-LAN-VIRTUALBOX.md` (VirtualBox VM provisioning, network pre-flight, router-free bypasses + manual walkthrough), `gitops/README.md` (GitOps practices), `readme.md` (user-facing).
 
 ## Repo map
 
@@ -26,6 +27,7 @@ helm-chart/                  the single umbrella chart ("bona-helm", release nam
   Chart.yaml                 dependency: kube-prometheus-stack 65.3.2, condition metrics.enabled (vendored in charts/)
   values.yaml                all config; secrets come only from secrets.yaml; host.scheme + tls.* drive URLs/TLS
   values-lan.yaml            overlay for ./start lan (http + *.test — matches defaults, explicit for ArgoCD)
+  values-orbstack.yaml       overlay for ./start orbstack (same shape as values-lan.yaml)
   values-vps.yaml            overlay for ./start vps (https + real domains + tls.email — TODOs marked)
   secrets.yaml (root)        SOPS+PGP encrypted: database.{name,user,password}, keycloak.{adminName,adminPassword}
   .sops.yaml  demo-secret-key.asc   SOPS config + demo PGP private key (passphrase: example1) — public on purpose
@@ -33,8 +35,8 @@ helm-chart/                  the single umbrella chart ("bona-helm", release nam
   config/realm-export.json   Keycloak realm import (Go-templated; seeds user demo/demo; reactclient redirect follows host.scheme/host.app)
   migrations/migration-1.sql creates + seeds nodejs_numbers (3087), golang_numbers (1703); runs via a k8s Job
   templates/                 one folder per component (+ cert-issuer.yaml, gated on tls.enabled)
-ansible/                     remote bootstrap: inventory.sample.ini (real inventory.ini gitignored), site.yml, roles/{common,k3s,ingress_nginx,cert_manager,argocd,backups_offsite}
-gitops/                      committed ArgoCD manifests: apps/{lan,vps}/ap.yaml (the Application per env); README explains the practices
+ansible/                     remote bootstrap: ansible.cfg (explicitly applied by remote-up.sh), inventory.sample.ini (real inventory.ini gitignored), site.yml, group_vars/{all,lan,orbstack,vps}.yml, roles/{common,k3s,ingress_nginx,cert_manager,argocd,backups_offsite}
+gitops/                      committed ArgoCD manifests: apps/{orbstack,lan,vps}/ap.yaml (the Application per env); README explains the practices
 nodejs-back/                 Node 22 + express API (Dockerfile: distroless)
 golang-back/                 Go 1.21 + gin API (Dockerfile; needs .env locally — godotenv log.Fatal — but NOT in cluster)
 react-front/                 React 18 + TS + Vite SPA (Dockerfile takes VITE_* build args — defaults reproduce *.test)

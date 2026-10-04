@@ -1,0 +1,23 @@
+# OrbStack overlay — a real Ubuntu machine on this Mac (OrbStack), driven by
+# the same Ansible + ArgoCD pipeline as lan/vps (docs/RUN.md, section OrbStack).
+# Same *.test names as local Minikube and the lan VM: only the hosts-file
+# mapping changes (or nothing at all — smoke tests use curl --resolve).
+# Applied by the ArgoCD Application gitops/apps/orbstack/ap.yaml via
+# `./start orbstack`; values match chart defaults and are listed explicitly
+# so this file alone describes the environment.
+host:
+  scheme: http
+  app: grogu.test
+  auth: auth.test
+  prometheus: prom.test
+  grafana: grafana.test
+
+tls:
+  enabled: false   # to rehearse the vps TLS branch: build values with sslip.io
+                   # domains + tls.email, set true, flip tls_enabled in
+                   # ansible/group_vars/orbstack.yml
+
+metrics:
+  enabled: false   # the 8 GB machine runs the ~5 Gi app stack comfortably;
+                   # add kube-prometheus-stack (~2 Gi more) only if you raise
+                   # the machine's memory (`orb config` / re-create)

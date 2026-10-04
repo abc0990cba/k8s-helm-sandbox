@@ -7,8 +7,9 @@
   changed_when: "'unchanged' not in ingress_apply.stdout"
 
 - name: Wait for the controller to roll out
+  # 600s: the first run also pulls the controller image — 300s can be too tight
   ansible.builtin.command: >
-    k3s kubectl -n ingress-nginx rollout status deployment/ingress-nginx-controller --timeout=300s
+    k3s kubectl -n ingress-nginx rollout status deployment/ingress-nginx-controller --timeout=600s
   register: ingress_rollout
   changed_when: false
 

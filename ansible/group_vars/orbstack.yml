@@ -1,0 +1,13 @@
+# vars for the orbstack target — local rehearsal of the remote pipeline.
+# A real Ubuntu 24.04 machine in OrbStack on this Mac, bootstrapped by the
+# same site.yml roles as lan/vps (scripts/orbstack-create.sh makes the machine).
+env_name: "orbstack"
+tls_enabled: false   # *.test cannot get real certificates; flip to true to
+                     # rehearse the vps TLS branch (needs values-orbstack.yaml
+                     # with tls.* + sslip.io-style domains)
+argocd_domain: "argocd.test"   # add to the Mac's hosts file next to grogu.test if you want the ArgoCD UI
+
+# the machine's host key isn't in known_hosts until the first connect — accept it
+# instead of failing under ansible's BatchMode (orbstack-create.sh also does a
+# verified handshake, this is the belt to that suspenders)
+ansible_ssh_common_args: "-o StrictHostKeyChecking=accept-new"

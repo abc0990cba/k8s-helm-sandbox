@@ -38,6 +38,10 @@ have ansible-playbook || die "ansible not found on this Mac:
    ansible-galaxy collection install -r ansible/requirements.yml"
 have kubectl       || die "kubectl not found — brew install kubectl"
 
+# the playbook is run from the repo root, but the config lives in ansible/ —
+# point ansible at it explicitly (host_key_checking, pipelining, /bin/bash shell)
+export ANSIBLE_CONFIG="$PWD/ansible/ansible.cfg"
+
 info "target: $TARGET ($R_USER@$R_HOST)"
 
 if [ "$SKIP_BOOTSTRAP" = false ]; then

@@ -64,14 +64,29 @@
       --from-file=demo-secret-key.asc=/tmp/demo-secret-key.asc \
       --dry-run=client -o yaml | k3s kubectl apply -f -
 
-- name: Patch argocd-repo-server with the helm-secrets CMP sidecar
+- name: Install the helm-secrets CMP plugin definition (ConfigMap)
   ansible.builtin.shell: |
     set -o pipefail
     k3s kubectl apply -f - <<'EOF'
-    {{ lookup('ansible.builtin.template', playbook_dir ~ '/roles/argocd/templates/repo-server-helm-secrets.yaml.j2') }}
+    {{ lookup('ansible.builtin.template', playbook_dir ~ '/roles/argocd/templates/cmp-plugin-configmap.yaml.j2') }}
     EOF
+  register: cmp_cm
+  changed_when: "'configured' in cmp_cm.stdout or 'created' in cmp_cm.stdout"
+
+- name: Patch argocd-repo-server with the helm-secrets CMP sidecar
+  # strategic-merge PATCH, not apply: the fragment carries only the fields it
+  # adds (volumes, init container, cmp sidecar). kubectl apply — client- or
+  # server-side — deletes/takes fields absent from the file and dies on the
+  # immutable spec.selector; a patch touches nothing else.
+  ansible.builtin.shell: |
+    set -o pipefail
+    k3s kubectl patch deployment argocd-repo-server -n argocd --type=strategic \
+      -p "$(cat <<'EOF'
+    {{ lookup('ansible.builtin.template', playbook_dir ~ '/roles/argocd/templates/repo-server-helm-secrets-patch.yaml.j2') }}
+    EOF
+    )"
   register: repo_patch
-  changed_when: "'configured' in repo_patch.stdout or 'created' in repo_patch.stdout"
+  changed_when: "'patched' in repo_patch.stdout and 'unchanged' not in repo_patch.stdout"
 
 - name: Wait for the patched repo-server
   ansible.builtin.command: >

@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 #
 # One command for every environment:
-#   ./start          local Minikube on this Mac (as before)
-#   ./start lan      k3s in the VirtualBox VM on the Wi-Fi LAN — Ansible + ArgoCD
-#   ./start vps      k3s on the VPS with TLS               — Ansible + ArgoCD
+#   ./start              local Minikube on this Mac (as before)
+#   ./start orbstack     Ubuntu machine in OrbStack on this Mac — full rehearsal
+#                        of the remote pipeline (Ansible + k3s + ArgoCD)
+#   ./start lan          k3s in the VirtualBox VM on the Wi-Fi LAN — Ansible + ArgoCD
+#   ./start vps          k3s on the VPS with TLS               — Ansible + ArgoCD
 #
 # Flags pass through: local (--metrics, --load-generator, --skip-smoke,
 # --check-only, --reset), remote (--skip-bootstrap, --skip-smoke). See docs/ for
@@ -18,11 +20,13 @@ fi
 
 TARGET="${1:-local}"
 case "$TARGET" in
-  local)    exec "$DIR/scripts/local-up.sh" "${@:2}" ;;
-  lan|vps)  exec "$DIR/scripts/remote-up.sh" "$@" ;;
+  local)         exec "$DIR/scripts/local-up.sh" "${@:2}" ;;
+  orbstack)      exec "$DIR/scripts/remote-up.sh" "$@" ;;
+  lan|vps)       exec "$DIR/scripts/remote-up.sh" "$@" ;;
   *)
-    echo "usage: ./start [local|lan|vps] [flags]" >&2
+    echo "usage: ./start [local|orbstack|lan|vps] [flags]" >&2
     echo "  local (default) — Minikube on this Mac" >&2
+    echo "  orbstack        — Ubuntu machine in OrbStack on this Mac (rehearses the lan/vps pipeline)" >&2
     echo "  lan             — k3s VM in VirtualBox on the LAN (ansible/inventory.ini)" >&2
     echo "  vps             — k3s on the VPS with TLS (ansible/inventory.ini)" >&2
     exit 1

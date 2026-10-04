@@ -1,0 +1,35 @@
+# Config-Management-Plugin definition for the argocd-repo-server sidecar that
+# runs `helm secrets template` so ArgoCD can deploy the chart with
+# SOPS-encrypted secrets.yaml. Approach per the helm-secrets ArgoCD wiki:
+# https://github.com/jkroepke/helm-secrets/wiki/ArgoCD — bump pinned versions in
+# ansible/group_vars/all.yml together with this file.
+#
+# The demo GPG key arrives via Secret argocd-sops-gpg (created by the argocd role).
+# It is the intentionally-public demo key — for anything real switch to age keys
+# and do NOT commit the private key (docs/DEPLOY-VPS-ARGOCD.md § secrets).
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cmp-plugin-helm-secrets
+  namespace: argocd
+data:
+  plugin.yaml: |
+    apiVersion: argoproj.io/v1alpha1
+    kind: ConfigManagementPlugin
+    metadata:
+      name: helm-secrets
+    spec:
+      version: v1.0
+      generate:
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            set -e
+            if [ -z "${HELM_VALUES:-}" ]; then
+              echo "HELM_VALUES is required — set it via source.plugin.env in the Application"
+              exit 1
+            fi
+            # runs in the app's checked-out source dir (helm-chart/);
+            # HELM_VALUES word-splits, e.g.: -f ../secrets.yaml -f values-vps.yaml
+            helm secrets template "$ARGOCD_APP_NAME" . ${HELM_VALUES} --namespace "$ARGOCD_APP_NAMESPACE"

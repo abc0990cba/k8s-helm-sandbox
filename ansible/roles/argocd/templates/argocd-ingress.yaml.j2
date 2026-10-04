@@ -5,9 +5,9 @@ metadata:
   namespace: argocd
   annotations:
     nginx.ingress.kubernetes.io/backend-protocol: HTTP
-    {%- if tls_enabled %}
+{% if tls_enabled %}
     cert-manager.io/cluster-issuer: {{ cluster_issuer | default('letsencrypt-prod') }}
-    {%- endif %}
+{% endif %}
 spec:
   ingressClassName: nginx
   rules:
@@ -21,9 +21,9 @@ spec:
                 name: argocd-server
                 port:
                   number: 80
-  {%- if tls_enabled %}
+{% if tls_enabled %}
   tls:
     - hosts:
         - {{ argocd_domain }}
       secretName: argocd-server-tls
-  {%- endif %}
+{% endif %}

@@ -37,8 +37,8 @@ pass "app resources removed"
 
 if [ "$PURGE" = true ]; then
   info "--purge: removing k3s from $R_HOST"
-  ssh "$R_USER@$R_HOST" 'sudo /usr/local/bin/k3s-uninstall.sh' \
-    || ssh "$R_USER@$R_HOST" 'sudo /usr/local/bin/k3s-killall.sh || true'
+  ssh -p "$R_PORT" "$R_USER@$R_HOST" 'sudo /usr/local/bin/k3s-uninstall.sh' \
+    || ssh -p "$R_PORT" "$R_USER@$R_HOST" 'sudo /usr/local/bin/k3s-killall.sh || true'
   rm -f ".local/kubeconfig-$R_NAME.raw.yaml" ".local/kubeconfig-$R_NAME.yaml"
   pass "cluster removed"
   warn "Postgres data still on the host: /data/postgresql (delete manually if you mean it)"

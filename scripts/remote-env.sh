@@ -25,8 +25,8 @@ REMOTE_REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 load_target() {
   local target="$1" inv="$REMOTE_REPO_DIR/ansible/inventory.ini" line
   case "$target" in
-    lan|vps) ;;
-    *) die "unknown target '$target' — expected lan|vps (plain ./start = local minikube)" ;;
+    lan|vps|orbstack) ;;
+    *) die "unknown target '$target' — expected lan|vps|orbstack (plain ./start = local minikube)" ;;
   esac
   [ -f "$inv" ] || die "ansible/inventory.ini not found.
    Copy the sample and fill in your $target machine:
@@ -36,20 +36,27 @@ load_target() {
       /^\[/                 { insec = 0 }
       insec && /ansible_host=/ { print; exit }
     ' "$inv")
-  [ -n "$line" ] || die "no host with 'ansible_host=' under [$target] in ansible/inventory.ini"
+  [ -n "$line" ] || die "no host with 'ansible_host=' under [$target] in ansible/inventory.ini
+   for the orbstack target, create the machine first:  scripts/orbstack-create.sh"
   R_NAME="$target"
   R_HOST=$(printf '%s' "$line" | sed -n 's/.*ansible_host=\([^ ]*\).*/\1/p')
   R_USER=$(printf '%s' "$line" | sed -n 's/.*ansible_user=\([^ ]*\).*/\1/p')
   R_USER=${R_USER:-root}
+  # optional ansible_port= in the inventory — used by the NAT/port-forward
+  # fallback (docs/DEPLOY-LAN-VIRTUALBOX.md) where the VM's ssh is reachable
+  # only through a forwarded port on the Windows host
+  R_PORT=$(printf '%s' "$line" | sed -n 's/.*ansible_port=\([^ ]*\).*/\1/p')
+  R_PORT=${R_PORT:-22}
   [ -n "$R_HOST" ] || die "[$target] entry in ansible/inventory.ini has no ansible_host="
 }
 
 open_tunnel() {
   # 6443 (k8s API) is deliberately firewalled on the target; everything goes
   # through ssh. 16443 is our fixed local end.
-  info "opening SSH tunnel 127.0.0.1:16443 → $R_USER@$R_HOST:6443"
+  info "opening SSH tunnel 127.0.0.1:16443 → $R_USER@$R_HOST:$R_PORT → 6443"
   ssh -N -L 16443:127.0.0.1:6443 \
       -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 \
+      -p "$R_PORT" \
       "$R_USER@$R_HOST" &
   TUNNEL_PID=$!
   local i
@@ -58,7 +65,7 @@ open_tunnel() {
       pass "tunnel up"
       return 0
     fi
-    kill -0 "$TUNNEL_PID" 2>/dev/null || die "ssh tunnel died — check: ssh $R_USER@$R_HOST"
+    kill -0 "$TUNNEL_PID" 2>/dev/null || die "ssh tunnel died — check: ssh -p $R_PORT $R_USER@$R_HOST"
     sleep 1
   done
   die "tunnel did not come up within 30 s"
