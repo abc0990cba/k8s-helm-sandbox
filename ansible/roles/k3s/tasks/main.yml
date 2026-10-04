@@ -26,7 +26,9 @@
 - name: Store the kubeconfig on the controller
   ansible.builtin.copy:
     content: "{{ k3s_kubeconfig.stdout }}\n"
-    dest: "{{ playbook_dir }}/../.local/kubeconfig-{{ inventory_hostname }}.raw.yaml"
+    # named after the TARGET (group), not the inventory host — scripts/remote-env.sh
+    # looks for .local/kubeconfig-<target>.raw.yaml (orbstack|lan|vps)
+    dest: "{{ playbook_dir }}/../.local/kubeconfig-{{ (group_names | intersect(['orbstack', 'lan', 'vps']))[0] | default(inventory_hostname) }}.raw.yaml"
     mode: "600"
   delegate_to: localhost
   become: false
