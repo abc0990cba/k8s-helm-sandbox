@@ -72,6 +72,10 @@
     EOF
   register: cmp_cm
   changed_when: "'configured' in cmp_cm.stdout or 'created' in cmp_cm.stdout"
+  notify: restart argocd-repo-server
+
+- name: Flush the repo-server handler now (the cmp-server reads plugin.yaml at startup)
+  ansible.builtin.meta: flush_handlers
 
 - name: Patch argocd-repo-server with the helm-secrets CMP sidecar
   # strategic-merge PATCH, not apply: the fragment carries only the fields it

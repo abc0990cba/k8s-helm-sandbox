@@ -2,3 +2,7 @@
 - name: restart argocd-server
   ansible.builtin.command: k3s kubectl -n argocd rollout restart deployment/argocd-server
   changed_when: true
+
+- name: restart argocd-repo-server
+  ansible.builtin.command: k3s kubectl -n argocd rollout restart deployment/argocd-repo-server
+  changed_when: true

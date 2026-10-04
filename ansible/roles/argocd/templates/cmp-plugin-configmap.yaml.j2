@@ -26,10 +26,7 @@ data:
         args:
           - |
             set -e
-            if [ -z "${HELM_VALUES:-}" ]; then
-              echo "HELM_VALUES is required — set it via source.plugin.env in the Application"
-              exit 1
-            fi
-            # runs in the app's checked-out source dir (helm-chart/);
-            # HELM_VALUES word-splits, e.g.: -f ../secrets.yaml -f values-vps.yaml
-            helm secrets template "$ARGOCD_APP_NAME" . ${HELM_VALUES} --namespace "$ARGOCD_APP_NAMESPACE"
+            # runs in the app's checked-out source dir (helm-chart/). ArgoCD does
+            # NOT pass source.plugin.env to sidecar plugins — the values files are
+            # baked in here, per environment, by the argocd role (env_name).
+            helm secrets template "$ARGOCD_APP_NAME" . -f ../secrets.yaml -f values-{{ env_name }}.yaml --namespace "$ARGOCD_APP_NAMESPACE"
