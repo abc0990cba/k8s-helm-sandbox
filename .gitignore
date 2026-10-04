@@ -68,6 +68,8 @@ web_modules/
 
 # Output of 'npm pack'
 *.tgz
+# ...but the helm subchart is vendored on purpose (AGENTS.md: 'vendored in charts/')
+!helm-chart/charts/*.tgz
 
 # Yarn Integrity file
 .yarn-integrity
