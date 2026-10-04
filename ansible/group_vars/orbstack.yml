@@ -11,7 +11,7 @@ argocd_domain: "argocd.test"   # add to the Mac's hosts file next to grogu.test 
 # served by `git daemon` on this Mac (scripts/orbstack-local-git.sh manages it:
 # creates .local/gitops-origin.git, pushes the current branch, starts the daemon).
 # Remove/comment this line (and push to origin) to switch back to GitHub.
-repo_url: "git://192.168.139.3:9418/gitops-origin.git"
+repo_url: "git://192.168.139.195:9418/gitops-origin.git"
 
 # the machine's host key isn't in known_hosts until the first connect — accept it
 # instead of failing under ansible's BatchMode (orbstack-create.sh also does a

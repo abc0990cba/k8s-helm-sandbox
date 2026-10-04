@@ -10,7 +10,7 @@ metadata:
 spec:
   project: ap
   source:
-    repoURL: git://192.168.139.3:9418/gitops-origin.git  # TEMPORARY local rehearsal — see ansible/group_vars/orbstack.yml
+    repoURL: git://192.168.139.195:9418/gitops-origin.git  # TEMPORARY local rehearsal — scripts/orbstack-local-git.sh
     targetRevision: main
     path: helm-chart
     plugin:
