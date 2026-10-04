@@ -1,20 +1,21 @@
 # Running the app in every environment
 
-One interface, three environments — `./start` with no argument (local
-Minikube on this Mac), `./start lan` (k3s in a VirtualBox VM on your Wi-Fi) and
-`./start vps` (k3s on a rented VPS with TLS). All three end with the same
-automated smoke tests; when they pass, the app is up.
+One interface, four environments — `./start` with no argument (local
+Minikube on this Mac), `./start orbstack` (the same pipeline rehearsed in an
+OrbStack Linux machine, also on this Mac), `./start lan` (k3s in a VirtualBox
+VM on your Wi-Fi) and `./start vps` (k3s on a rented VPS with TLS). All of
+them end with the same automated smoke tests; when they pass, the app is up.
 
 | | **local** (default) | **orbstack** | **lan** | **vps** |
 |---|---|---|---|---|
 | Command | `./start` | `./start orbstack` | `./start lan` | `./start vps` |
 | Cluster | Minikube (docker driver) on this Mac | k3s in an Ubuntu 24.04 machine in OrbStack, on this Mac | k3s in an Ubuntu VM (VirtualBox) | k3s on a rented Linux box |
 | Deployed by | `helm secrets upgrade --install` directly from this repo | Ansible bootstrap → **ArgoCD deploys the chart from git** | same as orbstack | same as orbstack, plus TLS |
-| App URL | [http://grogu.test/](http://grogu.test/) (via `minikube tunnel`) | `http://grogu.test/` (same hosts entries as local) | `http://grogu.test/` (hosts file → VM IP) | `https://<your-domain>/` (Let's Encrypt) |
-| Re-deploy after changes | `make upgrade` | `git push` (ArgoCD auto-syncs) | `git push` | `git push` |
+| App URL | [http://grogu.test/](http://grogu.test/) (via `minikube tunnel`) | `http://grogu.test/` (hosts file → machine IP) | `http://grogu.test/` (hosts file → VM IP) | `https://<your-domain>/` (Let's Encrypt) |
+| Re-deploy after changes | `make upgrade` | `./scripts/orbstack-local-git.sh` (local remote) — or `git push` in GitHub mode | `git push` | `git push` |
 | Tear down | `./stop` (cluster kept) / `./stop --purge` (cluster deleted) | `./stop orbstack` / `--purge` | `./stop lan` / `./stop lan --purge` | `./stop vps` / `./stop vps --purge` |
 | Status | `make status` | `make status TARGET=orbstack` | `make status TARGET=lan` | `make status TARGET=vps` |
-| Deep dive | this page + readme.md | this page + [DEPLOY-LAN-VIRTUALBOX.md](./DEPLOY-LAN-VIRTUALBOX.md) | [DEPLOY-LAN-VIRTUALBOX.md](./DEPLOY-LAN-VIRTUALBOX.md) | [DEPLOY-VPS-ARGOCD.md](./DEPLOY-VPS-ARGOCD.md) |
+| Deep dive | this page + readme.md | this page | [DEPLOY-LAN-VIRTUALBOX.md](./DEPLOY-LAN-VIRTUALBOX.md) | [DEPLOY-VPS-ARGOCD.md](./DEPLOY-VPS-ARGOCD.md) |
 
 What orbstack is **for**: it runs the *exact* lan/vps pipeline — Ansible
 bootstrap (hardening → k3s → ingress-nginx → ArgoCD + helm-secrets) → ArgoCD
@@ -112,9 +113,10 @@ make status       # cluster / pods / release / tunnel / URLs
 
 A real Ubuntu 24.04 machine (same distro as the lan VM and the VPS) running
 inside [OrbStack](https://orbstack.dev) on this Mac, bootstrapped by the same
-Ansible playbook as the other remote targets. If `./start orbstack` is green,
-`./start lan` / `./start vps` will behave the same — the only differences are
-the machine's address and (on vps) TLS.
+Ansible playbook as the other remote targets: hardening → k3s → ingress-nginx
+→ **ArgoCD, which deploys the chart as GitOps** (helm-secrets decrypts
+`secrets.yaml` in-cluster). If `./start orbstack` is green, `./start lan` /
+`./start vps` behave the same — only the address and (on vps) TLS differ.
 
 ### Prerequisites (once)
 
@@ -125,74 +127,77 @@ ansible-galaxy collection install -r ansible/requirements.yml
 ssh-keygen -t ed25519          # if you don't have ~/.ssh/id_ed25519 yet
 ```
 
-### One-time machine provisioning
+### From scratch — three commands, in this order
 
 ```bash
-./scripts/orbstack-create.sh
+./scripts/orbstack-create.sh       # 1. machine: Ubuntu 24.04, 4 CPU / 8 GB,
+                                   #    sshd + your key, [orbstack] inventory entry
+./scripts/orbstack-local-git.sh    # 2. local git remote: ArgoCD will sync the
+                                   #    chart from your Mac — no GitHub needed
+./start orbstack                   # 3. bootstrap + deploy + smoke tests
 ```
 
-Idempotent; creates/repairs: the `k3s-orbstack` machine (4 CPUs / 8 GB),
-sshd inside it + your public key, and the `[orbstack]` group in
-`ansible/inventory.ini` (created from the sample if you don't have one).
-Re-run it if the machine's IP ever changes.
+- Step 1 is idempotent — it creates or repairs the `k3s-orbstack` machine,
+  installs sshd inside it, and writes the `[orbstack]` group into
+  `ansible/inventory.ini`.
+- Step 2 creates the bare repo `.local/gitops-origin.git` (gitignored) and a
+  `git daemon` systemd service **inside the machine** that serves it through
+  OrbStack's `/mnt/mac` mount — the repo never crosses the network, and it
+  also tracks the machine's IP automatically.
+- Step 3 re-runs are idempotent: the playbook `ok`s through in ~2 minutes,
+  then waits for the app. First run: ~10 min bootstrap + first image pulls
+  (up to ~25 min). The k8s API goes through an ssh tunnel
+  (`127.0.0.1:16443 → machine:6443`) the script manages; smoke tests use
+  `curl --resolve`, so they never depend on hosts files.
 
-### Launch
+### Everyday loop — change → deploy
 
 ```bash
-./start orbstack               # full: ansible bootstrap → k3s → ingress-nginx
-                               # → ArgoCD → smoke tests
-./start orbstack --skip-bootstrap   # cluster already bootstrapped
-./start orbstack --skip-smoke
+# edit helm-chart/, gitops/ or ansible/ ...
+git add -A && git commit -m "my change"
+./scripts/orbstack-local-git.sh       # push local main -> the local remote
+./start orbstack --skip-bootstrap    # optional: force the sync + re-run smokes
 ```
 
-First run: ~10 min bootstrap + the ArgoCD app pulling every image (up to
-~25 min). Later runs: the playbook is idempotent and `ok`s through in a
-couple of minutes. The k8s API is reached through an ssh tunnel
-(`127.0.0.1:16443 → machine:6443`) that the script manages; smoke tests run
-via `curl --resolve`, so **no hosts-file edits are needed**.
+ArgoCD also auto-syncs on its own within ~3 minutes of each push. Watch with
+`make status TARGET=orbstack`.
 
-### Browser access — switching between local and orbstack
+### Browser access
 
-Both local Minikube and orbstack serve `grogu.test`, so the `/etc/hosts`
-entry (`127.0.0.1 grogu.test …`) decides who answers:
+The app serves at `http://grogu.test/` (login **demo / demo**; Keycloak
+console `http://auth.test/`, admin/admin). Smoke tests don't need hosts
+entries, but a browser does — point the names at the machine IP (the
+`orbstack-local-git.sh` output prints it):
 
-- **local is answering** (default): browse as usual while `./start`'s tunnel runs.
-- **switch to orbstack**: stop the local stack first (`./stop` — frees port
-  80 and the hosts mapping), then `./start orbstack`. If OrbStack's
-  localhost port-forwarding is active, `grogu.test` keeps resolving via
-  `127.0.0.1` with nothing to edit; otherwise point the hosts entries at the
-  machine IP (`orb list` shows it):
-  `sed -i '' 's/^127.0.0.1 grogu.test/192.168.139.195 grogu.test/' /etc/hosts`
-  (same for `auth.test`).
-- **switch back**: `./stop orbstack`, then `./start` — it restores the
-  `127.0.0.1` mapping and the tunnel.
+```bash
+sudo sh -c 'printf "192.168.139.195 grogu.test auth.test prom.test grafana.test\n" >> /etc/hosts'
+```
 
-### Testing your changes (the fast loop)
+- If the machine IP ever changes, re-run `./scripts/orbstack-local-git.sh`
+  (it fixes inventory + ArgoCD URLs automatically) and update this line.
+- **`ERR_ADDRESS_UNREACHABLE` or stale page in your own browser?** Fully quit
+  the browser (Cmd+Q) and reopen — it caches failed connections from before
+  the hosts edit. If that doesn't help: try an incognito window (rules out
+  extensions/proxy-switchers), turn off Chrome's *Use secure DNS*, and pause
+  any VPN/accelerator app — it may route the browser away from OrbStack's
+  private subnet. (The ZCode built-in browser is a clean instance and always
+  works.)
+- **Switching browser between local Minikube and orbstack**: only one can own
+  `grogu.test` at a time. To orbstack: stop local (`./stop`), hosts → machine
+  IP (above). Back to local: flip the hosts entries to `127.0.0.1`, then
+  `./start` (it restores the tunnel).
 
-- **GitHub-free rehearsal (default here):** the orbstack target syncs ArgoCD
-  from a **local git remote on this Mac** — no GitHub involved. Commit your
-  changes, then:
-  ```bash
-  ./scripts/orbstack-local-git.sh    # push local main -> the local remote
-  ```
-  ArgoCD auto-syncs within ~3 minutes (or `./start orbstack` to force). The
-  script manages everything: the bare repo (`.local/gitops-origin.git`,
-  gitignored), a `git daemon` systemd unit inside the machine (serving it via
-  OrbStack's `/mnt/mac` mount — the repo never crosses the network), and the
-  firewall rule. Switch back to GitHub by commenting `repo_url` in
-  `ansible/group_vars/orbstack.yml`, reverting the commits marked TEMPORARY,
-  and pushing to origin.
-- **Ansible/role changes** (`ansible/`): just `./start orbstack` again — the
-  playbook is idempotent.
-- **No-git fast path for chart experiments** (bypasses ArgoCD entirely):
-  apply the chart directly, same as the manual lan path:
-  ```bash
-  source scripts/remote-env.sh && load_target orbstack && open_tunnel
-  export KUBECONFIG="$PWD/.local/kubeconfig-orbstack.yaml"
-  helm secrets upgrade --install ap ./helm-chart -f secrets.yaml -f helm-chart/values-orbstack.yaml --wait
-  ```
-  (ArgoCD's self-heal may revert drift on its next sync — use the local-git
-  loop above for anything you want to keep.)
+### Two sync modes
+
+| | **local remote** (default on this Mac) | **GitHub** |
+|---|---|---|
+| ArgoCD clones from | `git://<machine-ip>:9418/gitops-origin.git` | `github.com/abc0990cba/k8s-helm-sandbox` |
+| Deploy your changes | `./scripts/orbstack-local-git.sh` | `git push` |
+| Needs internet/GitHub | no | yes |
+| Switch | — | comment `repo_url` in `ansible/group_vars/orbstack.yml`, `git revert` the commits marked **TEMPORARY**, `git push origin main` |
+
+The same GitHub mode is what `./start lan` and `./start vps` use — rehearsing
+there is a matter of pointing the inventory at those machines.
 
 ### Teardown
 
@@ -209,9 +214,11 @@ orb delete k3s-orbstack       # remove the machine itself (frees the disk)
   `*.test` can't get real certificates. To rehearse the vps TLS branch, set
   it to `true` and give `helm-chart/values-orbstack.yaml` sslip.io-style
   domains + `tls.email`.
-- The machine participates in ArgoCD GitOps fully: it clones the GitHub repo,
-  decrypts `secrets.yaml` in-cluster via the helm-secrets sidecar (the
-  committed demo key), and self-heals — `git push` is the redeploy button.
+- Keep the machine out of sleep while testing: a suspended OrbStack machine
+  suspends the cluster. OrbStack restarts the machine (and k3s) on demand.
+- Postgres data lives at `/data/postgresql` inside the machine and survives
+  `./stop orbstack` and reboots; only `orb delete` (or `--purge` + manual
+  wipe) removes it.
 
 ---
 
@@ -299,15 +306,16 @@ Day-2 (backups, upgrades, secrets rotation) is covered in
 
 - **Secrets** (`database.*`, `keycloak.*`) live only in the SOPS-encrypted
   `secrets.yaml` (demo PGP key, passphrase `example1` — committed on purpose).
-  Edit with `make secrets-edit`. On `lan`/`vps`, pods read secrets at boot —
-  after editing, `kubectl rollout restart` the deployments (or `git push` a
-  changed secret; ArgoCD re-syncs but pods still need a restart).
+  Edit with `make secrets-edit`. On the remote targets (orbstack/lan/vps),
+  pods read secrets at boot — after editing, `kubectl rollout restart` the
+  deployments (ArgoCD re-syncs the secret, but pods still need a restart).
 - **Smoke tests** are the same everywhere: front page, gateway `/api/healthz`,
   both backends' public endpoints, Keycloak realm, and both private endpoints
   with a JWT from the seeded `demo/demo` user (Direct Access Grants are ON on
   the `reactclient` exactly for this).
 - **Everything deployable lives in `helm-chart/`**; the same chart is rendered
   by helm locally and by ArgoCD remotely, with per-environment overlays
-  `values-lan.yaml` / `values-vps.yaml` on top of `values.yaml`.
-- **Lost?** `make status` (add `TARGET=lan|vps` for remote), or read
+  (`values-orbstack.yaml` / `values-lan.yaml` / `values-vps.yaml`) on top of
+  `values.yaml`.
+- **Lost?** `make status` (add `TARGET=orbstack|lan|vps` for remote), or read
   [ARCHITECTURE.md](./ARCHITECTURE.md) for how the pieces fit together.

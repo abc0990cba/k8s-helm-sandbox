@@ -29,7 +29,6 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MACHINE="k3s-orbstack"
 MACHINE_USER="ubuntu"
 BARE="$REPO_DIR/.local/gitops-origin.git"
-URL="git://192.168.139.195:9418/gitops-origin.git"
 
 info() { printf '→ %s\n' "$*"; }
 pass() { printf '✔ %s\n' "$*"; }
@@ -42,14 +41,29 @@ have orb || die "OrbStack not found — brew install orbstack"
 BRANCH=$(git -C "$REPO_DIR" rev-parse --abbrev-ref HEAD)
 [ "$BRANCH" = "main" ] || die "on branch '$BRANCH' — ArgoCD tracks main; switch to main first"
 
+# OrbStack can reassign the machine IP — keep inventory + ArgoCD URLs in sync
+VM_IP=$(orb -m "$MACHINE" -u "$MACHINE_USER" hostname -I | awk '{print $1}')
+[ -n "$VM_IP" ] || die "could not read the machine IP"
+OLD_IP=$(grep -oE 'git://[0-9.]+' "$REPO_DIR/ansible/group_vars/orbstack.yml" | cut -d/ -f3)
+if [ -n "$OLD_IP" ] && [ "$OLD_IP" != "$VM_IP" ]; then
+  info "machine IP changed ($OLD_IP -> $VM_IP) — updating inventory and ArgoCD URLs"
+  sed -i '' "s/ansible_host=$OLD_IP/ansible_host=$VM_IP/" "$REPO_DIR/ansible/inventory.ini"
+  sed -i '' "s|git://$OLD_IP/|git://$VM_IP/|" \
+    "$REPO_DIR/ansible/group_vars/orbstack.yml" "$REPO_DIR/gitops/apps/orbstack/ap.yaml"
+  git -C "$REPO_DIR" add ansible/inventory.ini ansible/group_vars/orbstack.yml gitops/apps/orbstack/ap.yaml
+  git -C "$REPO_DIR" commit -q -m "TEMPORARY local remote: machine IP moved to $VM_IP (auto)"
+fi
+pass "machine IP: $VM_IP"
+
 info "pushing local main -> local remote"
 git -C "$REPO_DIR" push -q "$BARE" main
 pass "$(git --git-dir="$BARE" log --oneline -1)"
 
 info "ensuring the in-machine git daemon (serves $BARE via /mnt/mac)"
-orb -m "$MACHINE" -u "$MACHINE_USER" sudo sh -c '
+# the machine sees the Mac's filesystem at /mnt/mac — pass the repo mount path through
+orb -m "$MACHINE" -u "$MACHINE_USER" sudo REPO_MOUNT="/mnt/mac$REPO_DIR/.local" sh -c '
   mkdir -p /srv
-  ln -sfn "/mnt/mac/Volumes/ADATA SC750/pet/k8s-helm-sandbox/.local/gitops-origin.git" /srv/gitops-origin.git
+  ln -sfn "$REPO_MOUNT/gitops-origin.git" /srv/gitops-origin.git
   [ -f /etc/systemd/system/gitops-git-daemon.service ] || cat > /etc/systemd/system/gitops-git-daemon.service <<UNIT
 [Unit]
 Description=Local GitOps rehearsal git daemon (serves the Mac bare repo via /mnt/mac)
@@ -70,6 +84,7 @@ UNIT
 ' >/dev/null
 pass "git daemon active in the machine"
 
+URL="git://$VM_IP:9418/gitops-origin.git"
 orb -m "$MACHINE" -u "$MACHINE_USER" git ls-remote "$URL" main >/dev/null 2>&1 \
   || die "the remote is not reachable from the machine — check the daemon"
 pass "remote reachable: $URL"
