@@ -14,7 +14,7 @@ spec:
     targetRevision: main
     path: helm-chart
     plugin:
-      name: helm-secrets
+      name: helm-secrets-v1.0
       env:
         # word-split by the plugin's sh; secrets.yaml lives at the repo root
         - name: HELM_VALUES
