@@ -102,7 +102,8 @@
         }
       ],
       "input_headers": [
-        "Authorization"
+        "Authorization",
+        "Content-Type"
       ]
     },
     {
@@ -141,7 +142,8 @@
         }
       ],
       "input_headers": [
-        "Authorization"
+        "Authorization",
+        "Content-Type"
       ]
     },
     {
@@ -166,7 +168,8 @@
         }
       ],
       "input_headers": [
-        "Authorization"
+        "Authorization",
+        "Content-Type"
       ]
     },
     {
@@ -191,7 +194,8 @@
         }
       ],
       "input_headers": [
-        "Authorization"
+        "Authorization",
+        "Content-Type"
       ]
     },
     {
@@ -248,7 +252,8 @@
         }
       ],
       "input_headers": [
-        "Authorization"
+        "Authorization",
+        "Content-Type"
       ]
     },
     {
@@ -287,7 +292,8 @@
         }
       ],
       "input_headers": [
-        "Authorization"
+        "Authorization",
+        "Content-Type"
       ]
     },
     {
@@ -312,7 +318,8 @@
         }
       ],
       "input_headers": [
-        "Authorization"
+        "Authorization",
+        "Content-Type"
       ]
     },
     {
