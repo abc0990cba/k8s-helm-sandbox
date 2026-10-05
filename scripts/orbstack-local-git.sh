@@ -50,8 +50,9 @@ if [ -n "$OLD_IP" ] && [ "$OLD_IP" != "$VM_IP" ]; then
   sed -i '' "s/ansible_host=$OLD_IP/ansible_host=$VM_IP/" "$REPO_DIR/ansible/inventory.ini"
   sed -i '' "s|git://$OLD_IP/|git://$VM_IP/|" \
     "$REPO_DIR/ansible/group_vars/orbstack.yml" "$REPO_DIR/gitops/apps/orbstack/ap.yaml"
-  sed -i '' "s/REGISTRY: $OLD_IP:30500/REGISTRY: $VM_IP:30500/" "$REPO_DIR/.gitea/workflows/build-deploy.yml"
-  git -C "$REPO_DIR" add ansible/inventory.ini ansible/group_vars/orbstack.yml gitops/apps/orbstack/ap.yaml .gitea/workflows/build-deploy.yml
+  sed -i '' "s|$OLD_IP:30500|$VM_IP:30500|g" \
+    "$REPO_DIR/.gitea/workflows/build-deploy.yml" "$REPO_DIR/helm-chart/values-orbstack.yaml"
+  git -C "$REPO_DIR" add ansible/inventory.ini ansible/group_vars/orbstack.yml gitops/apps/orbstack/ap.yaml .gitea/workflows/build-deploy.yml helm-chart/values-orbstack.yaml
   git -C "$REPO_DIR" commit -q -m "TEMPORARY local remote: machine IP moved to $VM_IP (auto)"
 fi
 pass "machine IP: $VM_IP"

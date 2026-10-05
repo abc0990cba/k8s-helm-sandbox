@@ -70,16 +70,17 @@ jobs:
           git config user.name  "orbstack-ci"
           for SVC in $SERVICES; do
             case $SVC in
-              react-front) KEY=front; IMAGE=grogu-front ;;
-              nodejs-back) KEY=nodejsBack; IMAGE=grogu-api ;;
-              golang-back) KEY=golangBack; IMAGE=golang-back ;;
+              react-front) KEY=front;      IMAGE=grogu-front; END=tls ;;
+              nodejs-back) KEY=nodejsBack; IMAGE=grogu-api;   END=golangBack ;;
+              golang-back) KEY=golangBack; IMAGE=golang-back; END=metrics ;;
             esac
-            # bump BOTH the full image reference and the tag: CI images live in
-            # the local registry, not on Docker Hub
-            sed -i "/^$KEY:/,/^  components:/ {
+            # bump BOTH the full image reference and the tag — in the ORBSTACK
+            # overlay, so the shared values.yaml stays environment-neutral
+            # (GitHub mirror remains deployable for lan/vps unchanged)
+            sed -i "/^$KEY:/,/^$END:/ {
               s|^  image: .*|  image: $REGISTRY/$IMAGE|
               s|version: .*|version: $GITHUB_SHA|
-            }" helm-chart/values.yaml
+            }" helm-chart/values-orbstack.yaml
             echo "bumped $KEY -> $REGISTRY/$IMAGE:$GITHUB_SHA"
           done
           git add helm-chart/values.yaml
