@@ -107,6 +107,20 @@ golangBack:
     memory: "500Mi"
     cpu: "200m"
 
+# the async-jobs consumer — same image as nodejsBack, queue entrypoint
+# (src/worker.js); scales independently of the API
+nodejsWorker:
+  name: nodejs-worker
+  components: back
+  stack: worker
+  replicas: 1
+  requests:
+    memory: "64Mi"
+    cpu: "50m"
+  limits:
+    memory: "256Mi"
+    cpu: "200m"
+
 auth:
   name: keycloak-auth
   image: quay.io/keycloak/keycloak
@@ -155,8 +169,12 @@ postgres:
     cpu: "1000m"
   migration:
     name: postgres-migration
-    version: 1
+    # the latest migration file; bump when adding migrations/migration-N.sql —
+    # the new Job name is what triggers the run (ArgoCD/helm both understand it)
+    version: 2
     components: migration
+  # nightly aggregation of notes per owner into daily_reports
+  reportSchedule: "@daily"
 
 redis:
   name: redis-cache

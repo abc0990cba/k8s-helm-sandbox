@@ -18,9 +18,10 @@ import (
 type App struct{}
 
 func loadEnvs() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
+	// .env is a local-dev convenience only; in the cluster real config comes
+	// from pod env (the old log.Fatal here forced the Dockerfile to fake a .env)
+	if err := godotenv.Load(); err != nil {
+		log.Info("no .env file — using environment (expected in cluster)")
 	}
 }
 

@@ -1,27 +1,27 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Values.golangBack.name }}-deployment
+  name: {{ .Values.nodejsWorker.name }}-deployment
   namespace: {{ .Values.namespace }}
   labels:
-    app: {{ .Values.golangBack.components }}
-    stack: {{ .Values.golangBack.stack }}
+    app: {{ .Values.nodejsWorker.components }}
+    stack: {{ .Values.nodejsWorker.stack }}
 spec:
-  selector:
-    matchLabels:
-      app: {{ .Values.golangBack.components }}
-      stack: {{ .Values.golangBack.stack }}
-  replicas: {{ .Values.golangBack.replicas }}
+  replicas: {{ .Values.nodejsWorker.replicas }}
   strategy:
     type: RollingUpdate
     rollingUpdate:
       maxSurge: 1
       maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: {{ .Values.nodejsWorker.components }}
+      stack: {{ .Values.nodejsWorker.stack }}
   template:
     metadata:
       labels:
-        app: {{ .Values.golangBack.components }}
-        stack: {{ .Values.golangBack.stack }}
+        app: {{ .Values.nodejsWorker.components }}
+        stack: {{ .Values.nodejsWorker.stack }}
     spec:
       automountServiceAccountToken: false
       {{- if .Values.hardening.securityContext }}
@@ -33,14 +33,12 @@ spec:
         {{- include "wait-for-postgres-db" . | indent 8}}
         {{- include "wait-for-redis-cache" . | indent 8}}
       containers:
-      - name: {{ .Values.golangBack.name }}
-        image: "{{ .Values.golangBack.image }}:{{ .Values.golangBack.version }}"
+      - name: {{ .Values.nodejsWorker.name }}
+        image: "{{ .Values.nodejsBack.image }}:{{ .Values.nodejsBack.version }}"
         imagePullPolicy: IfNotPresent
-        ports:
-        - containerPort: {{ .Values.golangBack.containerPort }}
-          # /metrics is served on this same port (promhttp route)
+        # same image as the API — only the entrypoint differs (queue consumer)
+        command: ["/usr/bin/node", "src/worker.js"]
         {{- if .Values.hardening.securityContext }}
-        # 65532 = the nonroot uid of the distroless static runtime stage
         securityContext:
           runAsNonRoot: true
           runAsUser: 65532
@@ -48,27 +46,13 @@ spec:
           capabilities:
             drop: ["ALL"]
         {{- end }}
-        readinessProbe:
-          httpGet:
-            path: /ready
-            port: {{ .Values.golangBack.containerPort }}
-          initialDelaySeconds: 3
-          periodSeconds: 10
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: {{ .Values.golangBack.containerPort }}
-          initialDelaySeconds: 5
-          periodSeconds: 5
         resources:
-          requests: {{ .Values.golangBack.requests | toYaml | nindent 12 }}
-          limits: {{ .Values.golangBack.limits | toYaml | nindent 12 }}
+          requests: {{ .Values.nodejsWorker.requests | toYaml | nindent 12 }}
+          limits: {{ .Values.nodejsWorker.limits | toYaml | nindent 12 }}
         envFrom:
             - secretRef:
                 name: {{ .Values.postgres.name }}-secret
         env:
-        - name: PORT
-          value: {{ .Values.golangBack.containerPort | quote }}
         - name: POSTGRES_PORT
           value: {{ .Values.postgres.servicePort | quote }}
         - name: POSTGRES_HOST

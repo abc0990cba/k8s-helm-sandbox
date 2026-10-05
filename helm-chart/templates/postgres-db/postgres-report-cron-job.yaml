@@ -1,0 +1,37 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Values.postgres.name }}-report-cron-job
+  namespace: {{ .Values.namespace }}
+spec:
+  schedule: {{ .Values.postgres.reportSchedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 3600
+      template:
+        metadata:
+          # app: migration keeps the postgres NetworkPolicy allow-list intact
+          # (it already admits the migration Job and the backup CronJobs)
+          labels:
+            app: {{ .Values.postgres.migration.components }}
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          containers:
+            - name: {{ .Values.postgres.name }}-report
+              image: "{{ .Values.nodejsBack.image }}:{{ .Values.nodejsBack.version }}"
+              imagePullPolicy: IfNotPresent
+              # the batch pattern: same app image, a batch entrypoint, no server
+              command: ["/usr/bin/node", "scripts/daily-report.js"]
+              envFrom:
+                - secretRef:
+                    name: {{ .Values.postgres.name }}-secret
+              env:
+                - name: POSTGRES_PORT
+                  value: {{ .Values.postgres.servicePort | quote }}
+                - name: POSTGRES_HOST
+                  value: "{{ .Values.postgres.name }}-clusterip"

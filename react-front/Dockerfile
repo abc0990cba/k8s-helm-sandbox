@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM node:20-alpine AS build
 
 WORKDIR /app
 
@@ -16,6 +16,16 @@ ARG VITE_REDIRECT_URL=http://grogu.test/
 COPY . .
 
 RUN npm run build
+
+# non-root runtime: /app (and dist) owned by `node` so vite's config loader can
+# write its temp bundle next to vite.config.ts at preview startup
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY --from=build --chown=node:node /app /app
+
+USER node
 
 EXPOSE 8080
 

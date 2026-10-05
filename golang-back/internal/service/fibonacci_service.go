@@ -24,7 +24,7 @@ func (s *FibonacciService) GetFibonacciSum(ctx context.Context, num int) (*big.I
 	if err == redis.Nil {
 		log.Printf("%s key does not exist in redis\n", cacheKey)
 	} else if err != nil {
-		log.Println("[error]: error get cache key=%s", cacheKey)
+		log.Printf("[error]: error get cache key=%s", cacheKey)
 	} else {
 		num := new(big.Int)
 		num, ok := num.SetString(cachedSum, 10)
@@ -32,7 +32,7 @@ func (s *FibonacciService) GetFibonacciSum(ctx context.Context, num int) (*big.I
 			log.Printf("return fibonacci sum from cache key=%s\n", cacheKey)
 			return num, nil
 		} else {
-			log.Println("[error]: error bigInt.SetString() for cached Sum cast key=%s", cacheKey)
+			log.Printf("[error]: error bigInt.SetString() for cached Sum cast key=%s", cacheKey)
 		}
 	}
 

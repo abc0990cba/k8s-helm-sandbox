@@ -1,4 +1,4 @@
-FROM golang:1.21.0
+FROM golang:1.21 AS build
 
 WORKDIR /app
 
@@ -6,10 +6,13 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-# CI builds from a clean checkout have no .env (gitignored); godotenv
-# log.Fatals without it — real config comes from pod env anyway
-RUN test -f .env || printf 'PORT=8081\n' > .env
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /main ./cmd/main.go
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o /main ./cmd/main.go
+# static + nonroot (uid 65532) — matches the runAsNonRoot the chart applies
+FROM gcr.io/distroless/static-debian12:nonroot
 
-CMD ["/main"]
+COPY --from=build /main /main
+
+USER nonroot:nonroot
+
+ENTRYPOINT ["/main"]

@@ -1,0 +1,18 @@
+{{- if .Values.metrics.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ .Values.golangBack.name }}-service-monitor
+  namespace: {{ .Values.namespace }}
+  labels:
+    release: {{ .Release.Name }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.golangBack.components }}
+      stack: {{ .Values.golangBack.stack }}
+  endpoints:
+  - port: http
+    interval: 10s
+    path: /metrics
+{{- end }}

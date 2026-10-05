@@ -63,6 +63,222 @@
       ]
     },
     {
+      "endpoint": "/v1/nodejs/notes",
+      "method": "GET",
+      "input_query_strings": ["limit", "offset"],
+      "backend": [
+        {
+          "host": [
+            "http://{{ .Values.nodejsBack.name }}-clusterip:{{ .Values.nodejsBack.servicePort }}"
+          ],
+          "url_pattern": "/notes"
+        }
+      ]
+    },
+    {
+      "endpoint": "/v1/nodejs/notes",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "extra_config": {
+        "auth/validator": {
+          "alg": "{{ .Values.auth.alg }}",
+          "jwk_url": "{{ .Values.auth.jwkUrl }}",
+          "disable_jwk_security": true
+        }
+      },
+      "backend": [
+        {
+          "method": "POST",
+          "encoding": "no-op",
+          "host": [
+            "http://{{ .Values.nodejsBack.name }}-clusterip:{{ .Values.nodejsBack.servicePort }}"
+          ],
+          "url_pattern": "/notes"
+        }
+      ]
+    },
+    {
+      "endpoint": "/v1/nodejs/notes/{id}",
+      "method": "GET",
+      "backend": [
+        {
+          "host": [
+            "http://{{ .Values.nodejsBack.name }}-clusterip:{{ .Values.nodejsBack.servicePort }}"
+          ],
+          "url_pattern": "/notes/{id}"
+        }
+      ]
+    },
+    {
+      "endpoint": "/v1/nodejs/notes/{id}",
+      "method": "PATCH",
+      "output_encoding": "no-op",
+      "extra_config": {
+        "auth/validator": {
+          "alg": "{{ .Values.auth.alg }}",
+          "jwk_url": "{{ .Values.auth.jwkUrl }}",
+          "disable_jwk_security": true
+        }
+      },
+      "backend": [
+        {
+          "method": "PATCH",
+          "encoding": "no-op",
+          "host": [
+            "http://{{ .Values.nodejsBack.name }}-clusterip:{{ .Values.nodejsBack.servicePort }}"
+          ],
+          "url_pattern": "/notes/{id}"
+        }
+      ]
+    },
+    {
+      "endpoint": "/v1/nodejs/notes/{id}",
+      "method": "DELETE",
+      "output_encoding": "no-op",
+      "extra_config": {
+        "auth/validator": {
+          "alg": "{{ .Values.auth.alg }}",
+          "jwk_url": "{{ .Values.auth.jwkUrl }}",
+          "disable_jwk_security": true
+        }
+      },
+      "backend": [
+        {
+          "method": "DELETE",
+          "encoding": "no-op",
+          "host": [
+            "http://{{ .Values.nodejsBack.name }}-clusterip:{{ .Values.nodejsBack.servicePort }}"
+          ],
+          "url_pattern": "/notes/{id}"
+        }
+      ]
+    },
+    {
+      "endpoint": "/v1/nodejs/jobs",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "extra_config": {
+        "auth/validator": {
+          "alg": "{{ .Values.auth.alg }}",
+          "jwk_url": "{{ .Values.auth.jwkUrl }}",
+          "disable_jwk_security": true
+        }
+      },
+      "backend": [
+        {
+          "method": "POST",
+          "encoding": "no-op",
+          "host": [
+            "http://{{ .Values.nodejsBack.name }}-clusterip:{{ .Values.nodejsBack.servicePort }}"
+          ],
+          "url_pattern": "/jobs"
+        }
+      ]
+    },
+    {
+      "endpoint": "/v1/nodejs/jobs/{id}",
+      "method": "GET",
+      "backend": [
+        {
+          "host": [
+            "http://{{ .Values.nodejsBack.name }}-clusterip:{{ .Values.nodejsBack.servicePort }}"
+          ],
+          "url_pattern": "/jobs/{id}"
+        }
+      ]
+    },
+    {
+      "endpoint": "/v1/golang/notes",
+      "method": "GET",
+      "input_query_strings": ["limit", "offset"],
+      "backend": [
+        {
+          "host": [
+            "http://{{ .Values.golangBack.name }}-clusterip:{{ .Values.golangBack.servicePort }}"
+          ],
+          "url_pattern": "/notes/"
+        }
+      ]
+    },
+    {
+      "endpoint": "/v1/golang/notes",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "extra_config": {
+        "auth/validator": {
+          "alg": "{{ .Values.auth.alg }}",
+          "jwk_url": "{{ .Values.auth.jwkUrl }}",
+          "disable_jwk_security": true
+        }
+      },
+      "backend": [
+        {
+          "method": "POST",
+          "encoding": "no-op",
+          "host": [
+            "http://{{ .Values.golangBack.name }}-clusterip:{{ .Values.golangBack.servicePort }}"
+          ],
+          "url_pattern": "/notes/"
+        }
+      ]
+    },
+    {
+      "endpoint": "/v1/golang/notes/{id}",
+      "method": "GET",
+      "backend": [
+        {
+          "host": [
+            "http://{{ .Values.golangBack.name }}-clusterip:{{ .Values.golangBack.servicePort }}"
+          ],
+          "url_pattern": "/notes/{id}"
+        }
+      ]
+    },
+    {
+      "endpoint": "/v1/golang/notes/{id}",
+      "method": "PATCH",
+      "output_encoding": "no-op",
+      "extra_config": {
+        "auth/validator": {
+          "alg": "{{ .Values.auth.alg }}",
+          "jwk_url": "{{ .Values.auth.jwkUrl }}",
+          "disable_jwk_security": true
+        }
+      },
+      "backend": [
+        {
+          "method": "PATCH",
+          "encoding": "no-op",
+          "host": [
+            "http://{{ .Values.golangBack.name }}-clusterip:{{ .Values.golangBack.servicePort }}"
+          ],
+          "url_pattern": "/notes/{id}"
+        }
+      ]
+    },
+    {
+      "endpoint": "/v1/golang/notes/{id}",
+      "method": "DELETE",
+      "output_encoding": "no-op",
+      "extra_config": {
+        "auth/validator": {
+          "alg": "{{ .Values.auth.alg }}",
+          "jwk_url": "{{ .Values.auth.jwkUrl }}",
+          "disable_jwk_security": true
+        }
+      },
+      "backend": [
+        {
+          "method": "DELETE",
+          "encoding": "no-op",
+          "host": [
+            "http://{{ .Values.golangBack.name }}-clusterip:{{ .Values.golangBack.servicePort }}"
+          ],
+          "url_pattern": "/notes/{id}"
+        }
+      ]
+    },
+    {
       "endpoint": "/v1/nodejs/private",
       "extra_config": {
         "auth/validator": {

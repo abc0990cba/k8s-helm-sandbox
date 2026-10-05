@@ -24,6 +24,9 @@ spec:
       securityContext:
         seccompProfile:
           type: RuntimeDefault
+        # uid 1000 = the `node` user the image now runs as; fsGroup keeps the
+        # tmp emptyDir writable for npm caches
+        fsGroup: 1000
       {{- end }}
       containers:
       - name: {{ .Values.front.name }}
@@ -43,14 +46,13 @@ spec:
           value: reactclient
         - name: VITE_REDIRECT_URL
           value: "{{ .Values.host.scheme }}://{{ .Values.host.app }}/"
-        # vite's config loader writes a temp bundle next to vite.config.ts in
-        # /app — root-owned in the current image, so this container stays root
-        # until the phase-2 image rebuild makes it properly non-root; HOME on a
-        # writable tmp emptyDir keeps npm caches out of the overlayfs
+        # npm needs a writable HOME for caches; the preview server itself
+        # writes nothing (the image now runs as USER node and owns /app)
         - name: HOME
           value: /tmp
         {{- if .Values.hardening.securityContext }}
         securityContext:
+          runAsNonRoot: true
           allowPrivilegeEscalation: false
           capabilities:
             drop: ["ALL"]

@@ -2,27 +2,29 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
+	"golang-back/internal/model"
 	"golang-back/internal/util"
 
 	"github.com/gin-gonic/gin"
 )
 
+// POST /numbers {"number": <int>} — creating rows used to hang off
+// GET /numbers/:num (the old contract); it is a proper POST now
 func (h *Handler) create(c *gin.Context) {
-	num, err := strconv.Atoi(c.Param("num"))
-	if err != nil {
-		util.NewErrorResponse(c, http.StatusBadRequest, "invalid num param")
+	var input model.NumberInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		util.NewErrorResponse(c, http.StatusBadRequest, "body must be {\"number\": <int>}")
 		return
 	}
 
-	fiboSum, err := h.services.Number.Create(num)
+	id, err := h.services.Number.Create(input.Number)
 	if err != nil {
-		util.NewErrorResponse(c, http.StatusBadRequest, err.Error())
+		util.NewErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, fiboSum)
+	c.JSON(http.StatusCreated, gin.H{"id": id, "number": input.Number})
 }
 
 func (h *Handler) list(c *gin.Context) {

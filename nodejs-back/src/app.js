@@ -8,6 +8,8 @@ import { errorMiddleware } from "./middlewares/error.middleware.js";
 import { AppController } from "./controllers/app.controller.js";
 import { NumbersController } from "./controllers/numbers.controller.js";
 import { FibonacciController } from "./controllers/fibonacci.controller.js";
+import { NotesController } from "./controllers/notes.controller.js";
+import { JobsController } from "./controllers/jobs.controller.js";
 
 export class App {
   pgClient;
@@ -26,7 +28,9 @@ export class App {
       const controllers = [
         new AppController(),
         new FibonacciController(this.redisClient),
-        new NumbersController(this.pgClient, this.redisClient)
+        new NumbersController(this.pgClient, this.redisClient),
+        new NotesController(this.pgClient, this.redisClient),
+        new JobsController(this.pgClient, this.redisClient)
       ];
       this.initControllers(controllers);
       this.initErrorHandling();

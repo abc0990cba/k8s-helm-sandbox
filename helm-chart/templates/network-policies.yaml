@@ -32,8 +32,12 @@ spec:
               stack: {{ .Values.golangBack.stack }}
         - podSelector:
             matchLabels:
+              app: {{ .Values.nodejsWorker.components }}
+              stack: {{ .Values.nodejsWorker.stack }}
+        - podSelector:
+            matchLabels:
               app: {{ .Values.auth.components }}
-        # migration Job + the pg_dumpall/cleaner CronJobs share this label
+        # migration Job + the pg_dumpall/report/cleaner CronJobs share this label
         - podSelector:
             matchLabels:
               app: {{ .Values.postgres.migration.components }}
@@ -74,6 +78,11 @@ spec:
             matchLabels:
               app: {{ .Values.golangBack.components }}
               stack: {{ .Values.golangBack.stack }}
+        # the queue consumer
+        - podSelector:
+            matchLabels:
+              app: {{ .Values.nodejsWorker.components }}
+              stack: {{ .Values.nodejsWorker.stack }}
       ports:
         - port: {{ .Values.redis.containerPort }}
           protocol: TCP

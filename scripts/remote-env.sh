@@ -157,5 +157,78 @@ run_smoke() {
     warn "no access token from Keycloak — response: $(printf '%s' "$token_json" | head -c 200)"
     rc=1
   fi
+
+  # ------------------------------------------------------------- deep smoke
+  # body assertions + negative auth + the notes/jobs flows (only meaningful
+  # once the JWT path works — everything below reuses $token)
+  if [ -n "$token" ]; then
+    if deep_smoke; then
+      pass "deep smoke (notes CRUD, auth negatives, async jobs) OK"
+    else
+      warn "deep smoke FAILED — see the steps above"
+      rc=1
+    fi
+  fi
+  return "$rc"
+}
+
+# the app-level checks: response BODIES, not just status codes
+deep_smoke() {
+  local rc=0 body code id i
+
+  note_flow() { # $1 = service (nodejs|golang)
+    local svc="$1"
+    body=$(CURL_AT "$R_APP_HOST" "/api/v1/$svc/notes?limit=5" 2>/dev/null)
+    printf '%s' "$body" | grep -q '"total"' \
+      || { warn "$svc notes list: no pagination envelope — $(printf '%s' "$body" | head -c 120)"; rc=1; return; }
+    pass "$svc notes list → pagination envelope OK"
+
+    code=$(CURL_AT "$R_APP_HOST" "/api/v1/$svc/notes" -o /dev/null -w '%{http_code}' \
+      -X POST -H 'Content-Type: application/json' -d '{"title":"nope"}' 2>/dev/null || echo 000)
+    [ "$code" = "401" ] || { warn "$svc notes POST without token: expected 401, got $code"; rc=1; }
+    pass "$svc notes POST without token → 401 (gateway enforces JWT)"
+
+    body=$(CURL_AT "$R_APP_HOST" "/api/v1/$svc/notes" -X POST -H 'Content-Type: application/json' \
+      -H "Authorization: Bearer $token" -d '{"title":"smoke-note","body":"created by the smoke suite"}' 2>/dev/null)
+    id=$(printf '%s' "$body" | sed -n 's/.*"id":\([0-9]*\).*/\1/p' | head -1)
+    [ -n "$id" ] || { warn "$svc notes POST: no id in response — $(printf '%s' "$body" | head -c 120)"; rc=1; return; }
+    pass "$svc notes POST → created id=$id (owner from JWT)"
+
+    smoke "$svc notes GET by id     " "$R_APP_HOST" "/api/v1/$svc/notes/$id" 200 || rc=1
+
+    body=$(CURL_AT "$R_APP_HOST" "/api/v1/$svc/notes/$id" -X PATCH -H 'Content-Type: application/json' \
+      -H "Authorization: Bearer $token" -d '{"title":"smoke-note-updated"}' 2>/dev/null)
+    printf '%s' "$body" | grep -q 'smoke-note-updated' \
+      || { warn "$svc notes PATCH: title not updated — $(printf '%s' "$body" | head -c 120)"; rc=1; }
+    pass "$svc notes PATCH → title updated"
+
+    code=$(CURL_AT "$R_APP_HOST" "/api/v1/$svc/notes/$id" -o /dev/null -w '%{http_code}' \
+      -X DELETE -H "Authorization: Bearer $token" 2>/dev/null || echo 000)
+    [ "$code" = "204" ] || { warn "$svc notes DELETE: expected 204, got $code"; rc=1; }
+    smoke "$svc notes GET after del " "$R_APP_HOST" "/api/v1/$svc/notes/$id" 404 || rc=1
+  }
+
+  note_flow nodejs
+  note_flow golang
+
+  # async jobs: POST enqueues into a Redis Stream, the worker fills the result
+  body=$(CURL_AT "$R_APP_HOST" "/api/v1/nodejs/jobs" -X POST -H 'Content-Type: application/json' \
+    -H "Authorization: Bearer $token" -d '{"type":"fibonacci","payload":{"n":10}}' 2>/dev/null)
+  id=$(printf '%s' "$body" | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')
+  [ -n "$id" ] || { warn "jobs POST: no id — $(printf '%s' "$body" | head -c 120)"; return 1; }
+  pass "jobs POST → queued (id=$id)"
+
+  for i in $(seq 1 30); do
+    body=$(CURL_AT "$R_APP_HOST" "/api/v1/nodejs/jobs/$id" 2>/dev/null)
+    printf '%s' "$body" | grep -q '"status":"done"' && break
+    sleep 2
+  done
+  if printf '%s' "$body" | grep -q '"status":"done"' && printf '%s' "$body" | grep -q '"result":"55"'; then
+    pass "worker consumed the job → done, fib(10)=55"
+  else
+    warn "job did not reach done with fib(10)=55 — $(printf '%s' "$body" | head -c 200)"
+    rc=1
+  fi
+
   return "$rc"
 }
