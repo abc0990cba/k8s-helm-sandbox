@@ -67,6 +67,8 @@ jobs:
           GITEA_CREDS: ${{ secrets.CIGITCREDS }}
         run: |
           echo "creds-len at mirror: ${#GITEA_CREDS}"
+          echo "creds-md5 at mirror: $(printf %s "$GITEA_CREDS" | md5sum | cut -d\  -f1)"
+          export GIT_TRACE_CURL=1
           git config user.email "ci@orbstack.local"
           git config user.name  "orbstack-ci"
           for SVC in $SERVICES; do
