@@ -1,0 +1,30 @@
+{{- /* helm test hooks: `helm test ap` runs these in-cluster checks.
+ArgoCD deliberately ignores hook-annotated resources, so they are inert on the
+GitOps path and only execute via the local helm CLI. */}}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ .Release.Name }}-test-connection"
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Release.Name }}-tests
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  containers:
+    - name: in-cluster-smoke
+      image: busybox@sha256:ba76950ac9eaa407512c9d859cea48114eeff8a6f12ebaa5d32ce79d4a017dd8
+      command:
+        - sh
+        - -c
+        - |
+          set -e
+          echo "front:";     wget -qO- http://{{ .Values.front.name }}-clusterip:{{ .Values.front.servicePort }}/ >/dev/null && echo "  ok"
+          echo "gateway:";   wget -qO- http://{{ .Values.gateway.name }}-clusterip:{{ .Values.gateway.servicePort }}/healthz >/dev/null && echo "  ok"
+          echo "nodejs:";    wget -qO- http://{{ .Values.nodejsBack.name }}-clusterip:{{ .Values.nodejsBack.servicePort }}/healthz >/dev/null && echo "  ok"
+          echo "golang:";    wget -qO- http://{{ .Values.golangBack.name }}-clusterip:{{ .Values.golangBack.servicePort }}/healthz >/dev/null && echo "  ok"
+          echo "keycloak:";  wget -qO- http://{{ .Values.auth.name }}-clusterip:{{ .Values.auth.servicePort }}/realms/demorealm >/dev/null && echo "  ok"
+          echo "all in-cluster checks passed"

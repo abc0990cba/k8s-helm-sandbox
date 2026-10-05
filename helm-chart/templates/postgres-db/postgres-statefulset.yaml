@@ -15,6 +15,25 @@ spec:
       labels:
         app: {{ .Values.postgres.components }}
     spec:
+      automountServiceAccountToken: false
+      {{- if .Values.hardening.securityContext }}
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      {{- end }}
+      {{- if .Values.hardening.securityContext }}
+      initContainers:
+        # the data volume is a subPath mount, so fsGroup would not chown it —
+        # hand it to the postgres uid (999, as in the image) before start; the
+        # official entrypoint then runs the server directly as 999
+        - name: volume-permissions
+          image: busybox@sha256:ba76950ac9eaa407512c9d859cea48114eeff8a6f12ebaa5d32ce79d4a017dd8
+          command: ["sh", "-c", "chown -R 999:999 /var/lib/postgresql/data"]
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: {{ .Values.postgres.name }}-data
+              subPath: data
+      {{- end }}
       containers:
         - name: {{ .Values.postgres.name }}
           image: "{{ .Values.postgres.image }}:{{ .Values.postgres.version }}"
@@ -24,6 +43,15 @@ spec:
           envFrom:
             - secretRef:
                 name: "{{ .Values.postgres.name }}-secret"
+          {{- if .Values.hardening.securityContext }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+            runAsGroup: 999
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          {{- end }}
           readinessProbe:
             exec:
               command: ["sh", "-c", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
@@ -35,13 +63,12 @@ spec:
             initialDelaySeconds: 30
             periodSeconds: 20
           resources:
-            # previously unbounded; sized to co-exist with the app stack on a small node
-            requests:
-              cpu: "250m"
-              memory: "512Mi"
-            limits:
-              cpu: "1000m"
-              memory: "1Gi"
+            {{- with .Values.postgres.requests }}
+            requests: {{ . | toYaml | nindent 14 }}
+            {{- end }}
+            {{- with .Values.postgres.limits }}
+            limits: {{ . | toYaml | nindent 14 }}
+            {{- end }}
           volumeMounts:
             - mountPath: /var/lib/postgresql/data
               name: {{ .Values.postgres.name }}-data

@@ -12,12 +12,23 @@ spec:
       app: {{ .Values.golangBack.components }}
       stack: {{ .Values.golangBack.stack }}
   replicas: {{ .Values.golangBack.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   template:
     metadata:
       labels:
         app: {{ .Values.golangBack.components }}
         stack: {{ .Values.golangBack.stack }}
     spec:
+      automountServiceAccountToken: false
+      {{- if .Values.hardening.securityContext }}
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      {{- end }}
       initContainers:
         {{- include "wait-for-postgres-db" . | indent 8}}
         {{- include "wait-for-redis-cache" . | indent 8}}
@@ -27,8 +38,23 @@ spec:
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: {{ .Values.golangBack.containerPort }}
+        {{- if .Values.hardening.securityContext }}
+        # no runAsNonRoot yet — the current image is a single-stage golang build
+        # (root USER); it goes distroless+nonroot in the app-expansion pass
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+        {{- end }}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: {{ .Values.golangBack.containerPort }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
         resources:
-          limits: {{ .Values.golangBack.limits | toYaml | nindent 14 }}
+          requests: {{ .Values.golangBack.requests | toYaml | nindent 12 }}
+          limits: {{ .Values.golangBack.limits | toYaml | nindent 12 }}
         envFrom:
             - secretRef:
                 name: {{ .Values.postgres.name }}-secret
@@ -39,9 +65,7 @@ spec:
           value: {{ .Values.postgres.servicePort | quote }}
         - name: POSTGRES_HOST
           value: "{{ .Values.postgres.name }}-clusterip"
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: {{ .Values.golangBack.containerPort }}
-          initialDelaySeconds: 5
-          periodSeconds: 5
+        - name: REDIS_HOST
+          value: "{{ .Values.redis.name }}-clusterip"
+        - name: REDIS_PORT
+          value: {{ .Values.redis.servicePort | quote }}

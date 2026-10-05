@@ -17,11 +17,25 @@ spec:
       labels:
         app: {{ .Values.loadGenerator.components }}
     spec:
+      automountServiceAccountToken: false
       containers:
       - name: {{ .Values.loadGenerator.name }}
-        image: "{{ .Values.loadGenerator.image }}:{{ .Values.loadGenerator.version }}"
+        image: "{{ .Values.loadGenerator.image }}"
+        # one tight wget loop per target (targets are values-templated so they
+        # follow the chart's service names/ports) — this is the HPA's CPU fuel
         command:
         - /bin/sh
         - -c
-        - "while sleep 0.001; do wget -q -O- http://{{ .Values.nodejsBack.name }}-clusterip:{{ .Values.nodejsBack.servicePort }}/fibonacci; done"
+        - |
+          {{- range .Values.loadGenerator.targets }}
+          while true; do wget -q -O- {{ tpl . $ }} >/dev/null 2>&1 || true; done &
+          {{- end }}
+          wait
+        resources:
+          requests:
+            cpu: 10m
+            memory: 16Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
 {{- end }}

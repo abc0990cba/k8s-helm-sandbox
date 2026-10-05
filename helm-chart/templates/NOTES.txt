@@ -1,0 +1,19 @@
+{{ .Release.Name }} ("{{ .Chart.Name }}") is deployed to namespace "{{ .Values.namespace }}".
+
+Browser URLs (install hosts entries first: scripts/dev-hosts.sh <target>):
+
+  App:        {{ .Values.host.scheme }}://{{ .Values.host.app }}/
+  API:        {{ .Values.host.scheme }}://{{ .Values.host.app }}/api/healthz
+  Keycloak:   {{ .Values.host.scheme }}://{{ .Values.host.auth }}/  (realm "demorealm", seed user demo/demo)
+{{- if .Values.metrics.enabled }}
+
+  Prometheus: {{ .Values.host.scheme }}://{{ .Values.host.prometheus }}
+  Grafana:    {{ .Values.host.scheme }}://{{ .Values.host.grafana }}  (admin password: prom-operator by subchart default)
+{{- end }}
+
+Smoke tests run automatically via ./start (minikube) or ./start orbstack|lan|vps.
+In-cluster connectivity checks: helm test {{ .Release.Name }}.
+{{- if .Values.auth.devMode }}
+
+NOTE: Keycloak is running in devMode (start-dev) — fine for demos, not for anything real.
+{{- end }}

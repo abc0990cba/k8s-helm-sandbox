@@ -1,0 +1,73 @@
+{{- if .Values.hardening.pdb }}
+# one voluntary disruption at a time per workload — meaningful once replicas
+# scale up, harmless (no-op) at replicas=1; on a single-node cluster a drain
+# still evicts (the PDB caps budget, not node failure)
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Values.front.name }}-pdb
+  namespace: {{ .Values.namespace }}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.front.components }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Values.nodejsBack.name }}-pdb
+  namespace: {{ .Values.namespace }}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.nodejsBack.components }}
+      stack: {{ .Values.nodejsBack.stack }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Values.golangBack.name }}-pdb
+  namespace: {{ .Values.namespace }}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.golangBack.components }}
+      stack: {{ .Values.golangBack.stack }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Values.gateway.name }}-pdb
+  namespace: {{ .Values.namespace }}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.gateway.components }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Values.auth.name }}-pdb
+  namespace: {{ .Values.namespace }}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.auth.components }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Values.redis.name }}-pdb
+  namespace: {{ .Values.namespace }}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.redis.components }}
+{{- end }}

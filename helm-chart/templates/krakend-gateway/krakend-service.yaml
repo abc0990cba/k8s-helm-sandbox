@@ -3,12 +3,20 @@ kind: Service
 metadata:
   name: {{ .Values.gateway.name }}-clusterip
   namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.gateway.components }}
 spec:
   type: ClusterIP
   ports:
   - name: http
     port: {{ .Values.gateway.servicePort }}
     targetPort: {{ .Values.gateway.containerPort }}
+    protocol: TCP
+  # Prometheus exporter port (config/krakend.json) — scraped by the
+  # ServiceMonitor when metrics are enabled
+  - name: http-metrics
+    port: {{ .Values.gateway.metricsTargetPort }}
+    targetPort: {{ .Values.gateway.metricsTargetPort }}
     protocol: TCP
   selector:
     app: {{ .Values.gateway.components }}

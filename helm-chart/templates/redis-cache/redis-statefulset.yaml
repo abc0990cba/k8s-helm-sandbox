@@ -1,11 +1,14 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
-  name: {{ .Values.redis.name }}-deployment
+  name: {{ .Values.redis.name }}
   namespace: {{ .Values.namespace }}
   labels:
     app: {{ .Values.redis.components }}
 spec:
+  # was a Deployment (the long-standing README TODO); a StatefulSet is the
+  # honest shape for a stateful cache — stable identity + its own PVC
+  serviceName: {{ .Values.redis.name }}-clusterip
   replicas: 1
   selector:
     matchLabels:
@@ -15,9 +18,19 @@ spec:
       labels:
         app: {{ .Values.redis.components }}
     spec:
+      automountServiceAccountToken: false
+      {{- if .Values.hardening.securityContext }}
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      {{- end }}
       containers:
         - name: {{ .Values.redis.name }}
           image: "{{ .Values.redis.image }}:{{ .Values.redis.version }}"
+          imagePullPolicy: IfNotPresent
+          # no hardening securityContext here on purpose: the official image's
+          # entrypoint chowns /data and drops to the `redis` user itself, which
+          # needs root + CAP_CHOWN at start
           args: ['/usr/local/etc/redis/redis.conf']
           volumeMounts:
             - name: config
@@ -51,6 +64,12 @@ spec:
           configMap:
             defaultMode: 0666
             name: {{ .Values.redis.name }}-configmap
-        - name: redis-persistent-storage
-          persistentVolumeClaim:
-            claimName: {{ .Values.redis.name }}-pvc
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-persistent-storage
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: {{ .Values.redis.storage }}

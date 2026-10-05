@@ -5,6 +5,11 @@ metadata:
   namespace: {{ .Values.namespace }}
 spec:
   replicas: {{ .Values.auth.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: {{ .Values.auth.components }}
@@ -15,13 +20,51 @@ spec:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/keycloak-auth/keycloak-configmap.yaml") . | sha256sum }}
     spec:
+      automountServiceAccountToken: false
+      {{- if .Values.hardening.securityContext }}
+      # fsGroup so the emptyDir under /opt/keycloak/data is writable by the
+      # image's `keycloak` user (uid 1000)
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+        fsGroup: 1000
+      {{- end }}
       initContainers:
         {{- include "wait-for-postgres-db" . | indent 8}}
       containers:
         - name: {{ .Values.auth.name }}
           image: "{{ .Values.auth.image }}:{{ .Values.auth.version }}"
+          imagePullPolicy: IfNotPresent
+          {{- if .Values.auth.devMode }}
+          # legacy dev mode — HTTP, embedded H2 fallback config, no health
+          # endpoints; kept as the instant rollback if prod mode misbehaves
           args: ["start-dev", "--import-realm"]
+          {{- else }}
+          # production `start`: optimized server against Postgres, hostname
+          # derived from host.scheme/host.auth (matches the realm redirect
+          # URIs, KrakenD CORS and the react VITE_* build args), health +
+          # metrics exposed on the management port for the probes/ServiceMonitor
+          args:
+            - start
+            - --import-realm
+            - --http-enabled=true
+            - --hostname={{ .Values.host.scheme }}://{{ .Values.host.auth }}
+            - --health-enabled=true
+            - --metrics-enabled=true
+          {{- end }}
           env:
+            # Keycloak 26 renamed the bootstrap-admin envs; set both names so a
+            # version flip in either direction keeps working
+            - name: KC_BOOTSTRAP_ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.name }}-secret
+                  key: KEYCLOAK_ADMIN
+            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.name }}-secret
+                  key: KEYCLOAK_ADMIN_PASSWORD
             - name: KEYCLOAK_ADMIN
               valueFrom:
                 secretKeyRef:
@@ -32,7 +75,7 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.auth.name }}-secret
                   key: KEYCLOAK_ADMIN_PASSWORD
-            # Keycloak 25 (Quarkus) ignores the legacy WildFly DB_* vars; these are the supported ones
+            # Keycloak 25+ (Quarkus) ignores the legacy WildFly DB_* vars; these are the supported ones
             - name: KC_DB
               value: "postgres"
             - name: KC_DB_URL_HOST
@@ -65,19 +108,64 @@ spec:
           ports:
             - name: http
               containerPort: {{ .Values.auth.containerPort }}
-          resources:
-            limits: {{ .Values.auth.limits | toYaml | nindent 16 }}
-          volumeMounts:
-            - name: {{ .Values.auth.realm.file.name }}-volume
-              mountPath: "/opt/keycloak/data/import"
+            {{- if not .Values.auth.devMode }}
+            - name: management
+              containerPort: {{ .Values.auth.managementPort }}
+            {{- end }}
+          {{- if .Values.hardening.securityContext }}
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          {{- end }}
+          {{- if .Values.auth.devMode }}
           readinessProbe:
             httpGet:
               path: /realms/master
               port: {{ .Values.auth.containerPort }}
+          {{- else }}
+          startupProbe:
+            httpGet:
+              path: /health/ready
+              port: {{ .Values.auth.managementPort }}
+              scheme: HTTP
+            # first boot with an empty Postgres schema imports the realm and
+            # runs migrations — give it minutes, not seconds
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: {{ .Values.auth.managementPort }}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: {{ .Values.auth.managementPort }}
+            periodSeconds: 10
+          {{- end }}
+          resources:
+            requests: {{ .Values.auth.requests | toYaml | nindent 14 }}
+            limits: {{ .Values.auth.limits | toYaml | nindent 14 }}
+          volumeMounts:
+            - name: {{ .Values.auth.realm.file.name }}-volume
+              mountPath: "/opt/keycloak/data/import"
+              readOnly: true
+            {{- if not .Values.auth.devMode }}
+            # prod mode still wants a writable data dir (tmp caches); the realm
+            # import above shadows into it
+            - name: keycloak-data
+              mountPath: /opt/keycloak/data
+            {{- end }}
       volumes:
         - name: {{ .Values.auth.realm.file.name }}-volume
           configMap:
             name: {{ .Values.auth.name }}-configmap
             items:
             - key: {{ .Values.auth.realm.file.name }}.json
-              path: {{ .Values.auth.realm.file.name }}.json 
+              path: {{ .Values.auth.realm.file.name }}.json
+        {{- if not .Values.auth.devMode }}
+        - name: keycloak-data
+          emptyDir: {}
+        {{- end }}

@@ -1,14 +1,22 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
+  # deliberately NOT a helm.sh/hook Job: ArgoCD (the lan/vps/orbstack deploy
+  # path) ignores hook resources, so migrations would never run there. The
+  # version-suffixed name is the redeploy mechanism — bump
+  # postgres.migration.version and a fresh Job runs; every migration file is
+  # written idempotently so re-runs are safe.
   name: {{ .Values.postgres.migration.name }}-{{ .Values.postgres.migration.version }}-job
   namespace: {{ .Values.namespace }}
 spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 3600
   template:
     metadata:
       labels:
         app: {{ .Values.postgres.migration.components }}
     spec:
+      automountServiceAccountToken: false
       initContainers:
         {{- include "wait-for-postgres-db" . | indent 8}}
       containers:
@@ -17,7 +25,7 @@ spec:
         command: ["sh", "-c"]
         args:
           - |
-            psql -h $(POSTGRES_HOST) -U $(POSTGRES_USER) -d $(POSTGRES_DB) -f /mnt/sql/migration-{{ .Values.postgres.migration.version }}.sql
+            psql -v ON_ERROR_STOP=1 -h $(POSTGRES_HOST) -U $(POSTGRES_USER) -d $(POSTGRES_DB) -f /mnt/sql/migration-{{ .Values.postgres.migration.version }}.sql
         env:
         - name: PGPASSWORD
           value: "$(POSTGRES_PASSWORD)"
@@ -38,4 +46,4 @@ spec:
           name: {{ .Values.postgres.migration.name }}-configmap
           items:
           - key: migration-{{ .Values.postgres.migration.version }}.sql
-            path: migration-{{ .Values.postgres.migration.version }}.sql 
+            path: migration-{{ .Values.postgres.migration.version }}.sql

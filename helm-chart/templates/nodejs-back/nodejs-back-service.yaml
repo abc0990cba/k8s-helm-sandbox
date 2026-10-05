@@ -8,7 +8,9 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-  - name: http-metrics
+  # one port serves both the API and /metrics (prom-client on the same server);
+  # the ServiceMonitor (metrics-enabled) targets this port by name
+  - name: http
     port: {{ .Values.nodejsBack.servicePort }}
     targetPort: {{ .Values.nodejsBack.containerPort }}
     protocol: TCP

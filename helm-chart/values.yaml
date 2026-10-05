@@ -1,12 +1,24 @@
 environment: prod
 
-loadGenerator: 
+# production-hardening toggles — flip any off to fall back to the pre-hardening
+# behaviour (useful while debugging: netpol is the usual suspect)
+hardening:
+  securityContext: true   # runAsNonRoot / seccomp RuntimeDefault / drop caps / no SA token automount
+  pdb: true               # PodDisruptionBudgets (maxUnavailable 1) for the stateless workloads
+  netpol: true            # the full NetworkPolicy set (was: postgres+redis ingress only)
+
+loadGenerator:
   enable: false
   name: load-generator
-  image: busybox
-  version: 1.28
+  # digest-pinned busybox (same pin as the backup cleaner cronjob)
+  image: busybox@sha256:ba76950ac9eaa407512c9d859cea48114eeff8a6f12ebaa5d32ce79d4a017dd8
   components: load
   replicas: 20
+  targets:
+    # hit the public fibonacci through BOTH paths: straight at nodejs (HPA
+    # stress) and through the gateway at golang
+    - "http://{{ .Values.nodejsBack.name }}-clusterip:{{ .Values.nodejsBack.servicePort }}/fibonacci"
+    - "http://{{ .Values.gateway.name }}-clusterip:{{ .Values.gateway.servicePort }}/v1/golang/public/fibonacci/10"
 
 metrics:
   enabled: false
@@ -32,12 +44,15 @@ tls:
 gateway:
   name: krakend-gateway
   image: devopsfaith/krakend
-  version: 2.7 
+  version: "2.9.4"
   components: gateway
   servicePort: 8787
   containerPort: 8080
   metricsTargetPort: 9090
   replicas: 2
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
   limits:
     memory: "512Mi"
     cpu: "400m"
@@ -50,6 +65,10 @@ front:
   servicePort: 9071
   containerPort: 8080
   replicas: 1
+  # requests must exist for meaningful scheduling; cpu/memory sized for the SPA preview server
+  requests:
+    memory: "48Mi"
+    cpu: "30m"
   limits:
     memory: "128Mi"
     cpu: "100m"
@@ -63,10 +82,14 @@ nodejsBack:
   servicePort: 9070
   containerPort: 8080
   replicas: 1
+  # the CPU request is what makes the HPA's utilization target computable —
+  # without it the HPA renders but never scales
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
   limits:
     memory: "500Mi"
     cpu: "200m"
-
 
 golangBack:
   name: golang-back
@@ -77,6 +100,9 @@ golangBack:
   servicePort: 8800
   containerPort: 8081
   replicas: 1
+  requests:
+    memory: "64Mi"
+    cpu: "50m"
   limits:
     memory: "500Mi"
     cpu: "200m"
@@ -84,13 +110,19 @@ golangBack:
 auth:
   name: keycloak-auth
   image: quay.io/keycloak/keycloak
-  version: 25.0.6
+  version: "26.8.0"
   components: auth
   servicePort: 8080
   containerPort: 8080
+  # health/metrics management port (Keycloak 25+ `--health-enabled`/`--metrics-enabled`)
+  managementPort: 9000
   jwkUrl: http://keycloak-auth-clusterip:8080/realms/demorealm/protocol/openid-connect/certs
   alg: RS256
   replicas: 1
+  # false (default): Keycloak `start` in production mode — hostname/http derived
+  # from host.scheme/host.auth, health+metrics on the management port.
+  # true: legacy `start-dev` (dev-only convenience, kept as the instant rollback).
+  devMode: false
   realm:
     file:
       name: realm-export
@@ -101,6 +133,9 @@ auth:
     email: demo@example.test
     firstName: Demo
     lastName: User
+  requests:
+    memory: "512Mi"
+    cpu: "200m"
   limits:
     memory: "800Mi"
     cpu: "400m"
@@ -108,13 +143,16 @@ auth:
 postgres:
   name: postgres
   image: postgres
-  version: 14.0
+  version: "17.6-alpine"
   components: postgres
   servicePort: 5432
   containerPort: 5432
-  # limits:
-  #   memory: "500Mi"
-  #   cpu: "300m"
+  requests:
+    memory: "512Mi"
+    cpu: "250m"
+  limits:
+    memory: "1Gi"
+    cpu: "1000m"
   migration:
     name: postgres-migration
     version: 1
@@ -123,7 +161,8 @@ postgres:
 redis:
   name: redis-cache
   image: redis
-  version: 4.0.11-alpine
+  version: "7.4-alpine"
   components: cache
   containerPort: 6379
   servicePort: 6379
+  storage: 400Mi

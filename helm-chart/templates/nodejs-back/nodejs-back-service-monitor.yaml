@@ -5,15 +5,16 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: {{ .Values.nodejsBack.name }}-service-monitor
-  namespace: default
+  namespace: {{ .Values.namespace }}
   labels:
     release: {{ .Release.Name }}
 spec:
   selector:
     matchLabels:
       app: {{ .Values.nodejsBack.components }}
+      stack: {{ .Values.nodejsBack.stack }}
   endpoints:
-  - port: http-metrics
+  - port: http
     interval: 10s
     path: /metrics
 {{- end }}

@@ -15,25 +15,47 @@ spec:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/krakend-gateway/krakend-configmap.yaml") . | sha256sum }}
     spec:
+      automountServiceAccountToken: false
+      {{- if .Values.hardening.securityContext }}
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      {{- end }}
       containers:
       - name: {{ .Values.gateway.name }}
         image: "{{ .Values.gateway.image }}:{{ .Values.gateway.version }}"
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: {{ .Values.gateway.containerPort }}
-        resources:
-          limits: {{ .Values.gateway.limits | toYaml | nindent 14 }}
+        # the Prometheus exporter port from config/krakend.json — declared so
+        # the Service + (metrics-enabled) ServiceMonitor have something legal to target
+        - name: metrics
+          containerPort: {{ .Values.gateway.metricsTargetPort }}
+        {{- if .Values.hardening.securityContext }}
+        # no runAsNonRoot yet — the upstream image has no USER directive;
+        # flip together with a pinned/verified image build
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+        {{- end }}
         command: [ "/usr/bin/krakend" ]
         args: [ "run", "-d", "-c", "/etc/krakend/krakend.json", "-p", {{ .Values.gateway.containerPort | quote }} ]
         readinessProbe:
           httpGet:
             path: /v1/nodejs/public
             port: {{ .Values.gateway.containerPort }}
+          initialDelaySeconds: 3
+          periodSeconds: 10
         livenessProbe:
           httpGet:
             path: /healthz
             port: {{ .Values.gateway.containerPort }}
           initialDelaySeconds: 5
           periodSeconds: 5
+        resources:
+          requests: {{ .Values.gateway.requests | toYaml | nindent 12 }}
+          limits: {{ .Values.gateway.limits | toYaml | nindent 12 }}
         volumeMounts:
           - name: config-volume
             mountPath: /etc/krakend/

@@ -8,28 +8,38 @@ spec:
     matchLabels:
       app: {{ .Values.front.components }}
   replicas: {{ .Values.front.replicas }}
+  # zero-downtime rollouts: surge a new pod before retiring the old one
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   template:
     metadata:
       labels:
         app: {{ .Values.front.components }}
     spec:
+      automountServiceAccountToken: false
+      {{- if .Values.hardening.securityContext }}
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+        # uid 1000 = the `node` user baked into node:20-alpine; fsGroup makes
+        # the tmp emptyDir group-writable for it
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      {{- end }}
       containers:
       - name: {{ .Values.front.name }}
         image: "{{ .Values.front.image }}:{{ .Values.front.version }}"
         imagePullPolicy: IfNotPresent
-        # args: ["http://auth.test/", "demorealm", "reactclient", "http://grogu.test/"]
-        # args:
-        #   - --build-arg
-        #   - VITE_KEYCLOAK_URL=http://auth.test/
-        #   - VITE_KEYCLOAK_REALM=demorealm
-        #   - VITE_KEYCLOAK_CLIENT=reactclient
-        #   - VITE_REDIRECT_URL=http://grogu.test/
         ports:
         - containerPort: {{ .Values.front.containerPort }}
-        env:
         # no-ops for a Vite SPA (VITE_* is baked into the image at build time —
         # see react-front/Dockerfile and scripts/build-front.sh); kept values-driven
         # so the rendered env matches the ingress hosts for documentation/debugging
+        env:
         - name: VITE_KEYCLOAK_URL
           value: "{{ .Values.host.scheme }}://{{ .Values.host.auth }}/"
         - name: VITE_KEYCLOAK_REALM
@@ -38,5 +48,35 @@ spec:
           value: reactclient
         - name: VITE_REDIRECT_URL
           value: "{{ .Values.host.scheme }}://{{ .Values.host.app }}/"
+        # npm/vite need a writable HOME for caches once running as uid 1000 —
+        # the preview server itself writes nothing else
+        - name: HOME
+          value: /tmp
+        {{- if .Values.hardening.securityContext }}
+        securityContext:
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+        {{- end }}
+        readinessProbe:
+          httpGet:
+            path: /
+            port: {{ .Values.front.containerPort }}
+          initialDelaySeconds: 3
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /
+            port: {{ .Values.front.containerPort }}
+          initialDelaySeconds: 10
+          periodSeconds: 20
         resources:
-          limits: {{ .Values.front.limits | toYaml | nindent 14 }}
+          requests: {{ .Values.front.requests | toYaml | nindent 12 }}
+          limits: {{ .Values.front.limits | toYaml | nindent 12 }}
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: tmp
+        emptyDir: {}
