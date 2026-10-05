@@ -19,7 +19,7 @@ front:
   version: d6c0378c7b4e8af9b7efbc1df4d871229c481593
 nodejsBack:
   image: 192.168.139.195:30500/grogu-api
-  version: e3d697c1ede0377c9acfb14da783b7899a5c111e
+  version: 1cecf915c6b3f6972ef0876b1853183e400b152a
 golangBack:
   image: 192.168.139.195:30500/golang-back
   version: d6c0378c7b4e8af9b7efbc1df4d871229c481593
