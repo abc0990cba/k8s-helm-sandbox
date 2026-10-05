@@ -97,28 +97,31 @@ RUNNER_TOKEN=$(curl -sf -u "$GITEA_USER:$GITEA_PASS" \
 [ -n "$RUNNER_TOKEN" ] || die "could not get the repo runner registration token"
 
 mkdir -p "$(dirname "$RUNNER_CFG")"
-cat > "$RUNNER_CFG" <<EOF
+cat > "$RUNNER_CFG" <<RCFG
 # jobs run as docker containers on this Mac; they get the docker socket
-# (to build/push images) and resolve Gitea via host.orb.internal
+# (to build/push images) via this mount
 container:
   options: "-v /var/run/docker.sock:/var/run/docker.sock"
-EOF
+RCFG
+# the CI pipeline clones/pushes with these credentials — as an Actions secret
+curl -sf -X PUT -u "$GITEA_USER:$GITEA_PASS" \
+  -H 'Content-Type: application/json' \
+  -d "{\"data\":\"$GITEA_USER:$GITEA_PASS\"}" \
+  "http://localhost:$GITEA_PORT/api/v1/repos/$GITEA_USER/$REPO_NAME/actions/secrets/CIGITCREDS" \
+  || die "could not create the CIGITCREDS Actions secret"
+pass "Actions secret GITEA_CREDS created"
 
-if docker ps --format '{{.Names}}' | grep -qx gitea-runner; then
-  info "recreating act_runner with the current registration token"
-  docker rm -f gitea-runner >/dev/null 2>&1 || true
-else
-  info "starting act_runner (jobs run as docker containers via this Mac's docker)"
-  docker rm -f gitea-runner >/dev/null 2>&1 || true
-  docker run -d --name gitea-runner --restart=always --network gitea-net \
-    -v /var/run/docker.sock:/var/run/docker.sock \
-    -v "$RUNNER_CFG:/config.yaml:ro" \
-    -e "GITEA_INSTANCE_URL=http://gitea:$GITEA_PORT" \
-    -e "GITEA_RUNNER_REGISTRATION_TOKEN=$RUNNER_TOKEN" \
-    -e "GITEA_RUNNER_NAME=mac-runner" \
-    -e "GITEA_RUNNER_LABELS=docker:docker://catthehacker/ubuntu:act-latest" \
-    gitea/act_runner:latest >/dev/null
-fi
+# always (re)create: keeps the registration token and runner config current
+info "starting act_runner (jobs run as docker containers via this Mac's docker)"
+docker rm -f gitea-runner >/dev/null 2>&1 || true
+docker run -d --name gitea-runner --restart=always --network gitea-net \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v "$RUNNER_CFG:/config.yaml:ro" \
+  -e "GITEA_INSTANCE_URL=http://gitea:$GITEA_PORT" \
+  -e "GITEA_RUNNER_REGISTRATION_TOKEN=$RUNNER_TOKEN" \
+  -e "GITEA_RUNNER_NAME=mac-runner" \
+  -e "GITEA_RUNNER_LABELS=docker:docker://catthehacker/ubuntu:act-latest" \
+  gitea/act_runner:latest >/dev/null
 
 info "waiting for the runner to register to the repo"
 for _ in $(seq 1 40); do

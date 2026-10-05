@@ -17,15 +17,18 @@ env:
   REGISTRY: 192.168.139.195:30500          # in-machine registry (http, insecure)
   GITEA_HOST: host.orb.internal:3000       # Gitea as seen from job containers
   REPO: ci-admin/k8s-helm-sandbox
-  # GITEA_CREDS ("ci-admin:<password>") is injected into every job container
-  # by the runner config (~/.orbstack-gitea/runner-config.yaml)
+  # GITEA_CREDS ("ci-admin:<password>") is a repo Actions secret created by
+  # scripts/orbstack-gitea.sh
 
 jobs:
   build-deploy:
     runs-on: docker
     steps:
       - name: Checkout
+        env:
+          GITEA_CREDS: ${{ secrets.CIGITCREDS }}
         run: |
+          if [ -z "$GITEA_CREDS" ]; then echo "GITEA_CREDS is EMPTY"; exit 1; fi
           git clone "http://ci-admin:${GITEA_CREDS}@${GITEA_HOST}/${REPO}.git" .
           git log --oneline -3
 
@@ -59,6 +62,8 @@ jobs:
           done
 
       - name: Record image tags + mirror main to the ArgoCD repo
+        env:
+          GITEA_CREDS: ${{ secrets.CIGITCREDS }}
         run: |
           git config user.email "ci@orbstack.local"
           git config user.name  "orbstack-ci"
