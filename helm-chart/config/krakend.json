@@ -15,7 +15,7 @@
         "prometheus": [
           {
             "name": "local_prometheus",
-            "port": "{{ .Values.gateway.metricsTargetPort }}",
+            "port": {{ .Values.gateway.metricsTargetPort }},
             "process_metrics": true,
             "go_metrics": true
           }
