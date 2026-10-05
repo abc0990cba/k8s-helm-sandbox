@@ -16,13 +16,13 @@ host:
 # image/version here per git-SHA; the shared values.yaml stays environment-neutral
 front:
   image: 192.168.139.195:30500/grogu-front
-  version: 81abbb79a6e88712458f625029a8161d3c4c4a02
+  version: d6c0378c7b4e8af9b7efbc1df4d871229c481593
 nodejsBack:
   image: mmko67/grogu-api
   version: 0.1.6
 golangBack:
-  image: mmko67/golang-back
-  version: 0.0.8
+  image: 192.168.139.195:30500/golang-back
+  version: d6c0378c7b4e8af9b7efbc1df4d871229c481593
 
 tls:
   enabled: false   # to rehearse the vps TLS branch: build values with sslip.io
