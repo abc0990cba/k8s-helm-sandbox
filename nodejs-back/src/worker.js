@@ -77,8 +77,12 @@ async function processEntry(entry) {
 
   await pgPool.query("UPDATE jobs SET status = 'processing', updated_at = now() WHERE id = $1", [id]);
 
+  // node-pg already parses jsonb into an object; tolerate strings too
+  const rawPayload = job.rows[0].payload;
+  const payload = typeof rawPayload === "string" ? JSON.parse(rawPayload) : rawPayload;
+
   try {
-    const result = await handlers[type](JSON.parse(job.rows[0].payload));
+    const result = await handlers[type](payload);
     await pgPool.query("UPDATE jobs SET status = 'done', result = $2, updated_at = now() WHERE id = $1", [
       id,
       JSON.stringify(result),

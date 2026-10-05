@@ -12,14 +12,14 @@
       "service_name": "krakend_prometheus_service",
       "metric_reporting_period": 1,
       "exporters": {
-          "prometheus": [
-              {
-                  "name": "local_prometheus",
-                  "port": "{{ .Values.gateway.metricsTargetPort }}",
-                  "process_metrics": true,
-                  "go_metrics": true
-              }
-          ]
+        "prometheus": [
+          {
+            "name": "local_prometheus",
+            "port": "{{ .Values.gateway.metricsTargetPort }}",
+            "process_metrics": true,
+            "go_metrics": true
+          }
+        ]
       }
     },
     "security/cors": {
@@ -65,15 +65,20 @@
     {
       "endpoint": "/v1/nodejs/notes",
       "method": "GET",
-      "input_query_strings": ["limit", "offset"],
+      "input_query_strings": [
+        "limit",
+        "offset"
+      ],
       "backend": [
         {
           "host": [
             "http://{{ .Values.nodejsBack.name }}-clusterip:{{ .Values.nodejsBack.servicePort }}"
           ],
-          "url_pattern": "/notes"
+          "url_pattern": "/notes",
+          "encoding": "no-op"
         }
-      ]
+      ],
+      "output_encoding": "no-op"
     },
     {
       "endpoint": "/v1/nodejs/notes",
@@ -95,6 +100,9 @@
           ],
           "url_pattern": "/notes"
         }
+      ],
+      "input_headers": [
+        "Authorization"
       ]
     },
     {
@@ -105,9 +113,11 @@
           "host": [
             "http://{{ .Values.nodejsBack.name }}-clusterip:{{ .Values.nodejsBack.servicePort }}"
           ],
-          "url_pattern": "/notes/{id}"
+          "url_pattern": "/notes/{id}",
+          "encoding": "no-op"
         }
-      ]
+      ],
+      "output_encoding": "no-op"
     },
     {
       "endpoint": "/v1/nodejs/notes/{id}",
@@ -129,6 +139,9 @@
           ],
           "url_pattern": "/notes/{id}"
         }
+      ],
+      "input_headers": [
+        "Authorization"
       ]
     },
     {
@@ -151,6 +164,9 @@
           ],
           "url_pattern": "/notes/{id}"
         }
+      ],
+      "input_headers": [
+        "Authorization"
       ]
     },
     {
@@ -173,6 +189,9 @@
           ],
           "url_pattern": "/jobs"
         }
+      ],
+      "input_headers": [
+        "Authorization"
       ]
     },
     {
@@ -183,22 +202,29 @@
           "host": [
             "http://{{ .Values.nodejsBack.name }}-clusterip:{{ .Values.nodejsBack.servicePort }}"
           ],
-          "url_pattern": "/jobs/{id}"
+          "url_pattern": "/jobs/{id}",
+          "encoding": "no-op"
         }
-      ]
+      ],
+      "output_encoding": "no-op"
     },
     {
       "endpoint": "/v1/golang/notes",
       "method": "GET",
-      "input_query_strings": ["limit", "offset"],
+      "input_query_strings": [
+        "limit",
+        "offset"
+      ],
       "backend": [
         {
           "host": [
             "http://{{ .Values.golangBack.name }}-clusterip:{{ .Values.golangBack.servicePort }}"
           ],
-          "url_pattern": "/notes/"
+          "url_pattern": "/notes/",
+          "encoding": "no-op"
         }
-      ]
+      ],
+      "output_encoding": "no-op"
     },
     {
       "endpoint": "/v1/golang/notes",
@@ -220,6 +246,9 @@
           ],
           "url_pattern": "/notes/"
         }
+      ],
+      "input_headers": [
+        "Authorization"
       ]
     },
     {
@@ -230,9 +259,11 @@
           "host": [
             "http://{{ .Values.golangBack.name }}-clusterip:{{ .Values.golangBack.servicePort }}"
           ],
-          "url_pattern": "/notes/{id}"
+          "url_pattern": "/notes/{id}",
+          "encoding": "no-op"
         }
-      ]
+      ],
+      "output_encoding": "no-op"
     },
     {
       "endpoint": "/v1/golang/notes/{id}",
@@ -254,6 +285,9 @@
           ],
           "url_pattern": "/notes/{id}"
         }
+      ],
+      "input_headers": [
+        "Authorization"
       ]
     },
     {
@@ -276,16 +310,19 @@
           ],
           "url_pattern": "/notes/{id}"
         }
+      ],
+      "input_headers": [
+        "Authorization"
       ]
     },
     {
       "endpoint": "/v1/nodejs/private",
       "extra_config": {
         "auth/validator": {
-            "operation_debug": true,
-            "alg": "{{ .Values.auth.alg }}",
-            "jwk_url": "{{ .Values.auth.jwkUrl }}",
-            "disable_jwk_security": true
+          "operation_debug": true,
+          "alg": "{{ .Values.auth.alg }}",
+          "jwk_url": "{{ .Values.auth.jwkUrl }}",
+          "disable_jwk_security": true
         }
       },
       "backend": [
@@ -331,16 +368,16 @@
       "endpoint": "/v1/golang/private",
       "extra_config": {
         "auth/validator": {
-            "operation_debug": true,
-            "alg": "{{ .Values.auth.alg }}",
-            "jwk_url": "{{ .Values.auth.jwkUrl }}",
-            "disable_jwk_security": true
+          "operation_debug": true,
+          "alg": "{{ .Values.auth.alg }}",
+          "jwk_url": "{{ .Values.auth.jwkUrl }}",
+          "disable_jwk_security": true
         }
       },
       "backend": [
         {
           "host": [
-             "http://{{ .Values.golangBack.name }}-clusterip:{{ .Values.golangBack.servicePort }}"
+            "http://{{ .Values.golangBack.name }}-clusterip:{{ .Values.golangBack.servicePort }}"
           ],
           "is_collection": true,
           "url_pattern": "/numbers",
@@ -355,7 +392,7 @@
       "backend": [
         {
           "host": [
-             "http://{{ .Values.golangBack.name }}-clusterip:{{ .Values.golangBack.servicePort }}"
+            "http://{{ .Values.golangBack.name }}-clusterip:{{ .Values.golangBack.servicePort }}"
           ],
           "is_collection": true,
           "url_pattern": "/numbers",
@@ -373,7 +410,7 @@
         {
           "encoding": "no-op",
           "host": [
-             "http://{{ .Values.golangBack.name }}-clusterip:{{ .Values.golangBack.servicePort }}"
+            "http://{{ .Values.golangBack.name }}-clusterip:{{ .Values.golangBack.servicePort }}"
           ],
           "url_pattern": "/fibonacci/{num}"
         }
@@ -383,15 +420,14 @@
       "endpoint": "/v1/golang/public/primes/{num}",
       "timeout": "5s",
       "output_encoding": "no-op",
-      "input_query_strings":[
+      "input_query_strings": [
         "parallel"
       ],
-      
       "backend": [
         {
           "encoding": "no-op",
           "host": [
-             "http://{{ .Values.golangBack.name }}-clusterip:{{ .Values.golangBack.servicePort }}"
+            "http://{{ .Values.golangBack.name }}-clusterip:{{ .Values.golangBack.servicePort }}"
           ],
           "url_pattern": "/primes/{num}"
         }
