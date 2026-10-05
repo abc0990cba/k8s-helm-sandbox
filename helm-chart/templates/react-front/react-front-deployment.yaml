@@ -24,11 +24,6 @@ spec:
       securityContext:
         seccompProfile:
           type: RuntimeDefault
-        # uid 1000 = the `node` user baked into node:20-alpine; fsGroup makes
-        # the tmp emptyDir group-writable for it
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
       {{- end }}
       containers:
       - name: {{ .Values.front.name }}
@@ -48,13 +43,14 @@ spec:
           value: reactclient
         - name: VITE_REDIRECT_URL
           value: "{{ .Values.host.scheme }}://{{ .Values.host.app }}/"
-        # npm/vite need a writable HOME for caches once running as uid 1000 —
-        # the preview server itself writes nothing else
+        # vite's config loader writes a temp bundle next to vite.config.ts in
+        # /app — root-owned in the current image, so this container stays root
+        # until the phase-2 image rebuild makes it properly non-root; HOME on a
+        # writable tmp emptyDir keeps npm caches out of the overlayfs
         - name: HOME
           value: /tmp
         {{- if .Values.hardening.securityContext }}
         securityContext:
-          runAsNonRoot: true
           allowPrivilegeEscalation: false
           capabilities:
             drop: ["ALL"]
