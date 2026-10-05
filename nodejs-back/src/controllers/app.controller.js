@@ -16,20 +16,12 @@ export class AppController {
   }
 
   ready = async (req, res, next) => {
-    console.log("ready"); 
+    console.log("ready");
     res.send("ready");
   }
 
   healthy = async (req, res, next) => {
     console.log("healthy");
     res.send("healthy");
-  }
-
-  config = async (req, res, next) => {
-    res.send(config);
-  }
-
-  metrics = async (req, res, next) => {
-    res.send(config);
   }
 }
