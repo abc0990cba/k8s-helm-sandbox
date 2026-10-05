@@ -28,6 +28,7 @@ jobs:
         env:
           GITEA_CREDS: ${{ secrets.CIGITCREDS }}
         run: |
+          echo "creds-len at checkout: ${#GITEA_CREDS}"
           if [ -z "$GITEA_CREDS" ]; then echo "GITEA_CREDS is EMPTY"; exit 1; fi
           git clone "http://ci-admin:${GITEA_CREDS}@${GITEA_HOST}/${REPO}.git" .
           git log --oneline -3
@@ -65,6 +66,7 @@ jobs:
         env:
           GITEA_CREDS: ${{ secrets.CIGITCREDS }}
         run: |
+          echo "creds-len at mirror: ${#GITEA_CREDS}"
           git config user.email "ci@orbstack.local"
           git config user.name  "orbstack-ci"
           for SVC in $SERVICES; do
