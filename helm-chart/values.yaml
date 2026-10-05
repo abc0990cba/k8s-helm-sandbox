@@ -45,7 +45,7 @@ gateway:
 front:
   name: react-front
   image: mmko67/grogu-front
-  version: 0.3.7
+  version: 372e8acaee2293702847face7a097446d70191bd
   components: front
   servicePort: 9071
   containerPort: 8080
