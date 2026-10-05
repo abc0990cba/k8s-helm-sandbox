@@ -36,16 +36,25 @@ func worker(start, end int, results chan<- int, wg *sync.WaitGroup) {
 
 func (s *PrimesService) GetPrimesAmount(ctx context.Context, numWorkers, limit int) (int, error) {
 
-	results := make(chan int, limit)
+	results := make(chan int, limit+1)
 
 	var wg sync.WaitGroup
 
-	chunkSize := limit / numWorkers
+	// partition 2..limit into contiguous chunks (the old math skipped most
+	// numbers: chunkSize=limit/numWorkers with start=i*chunkSize+2 left gaps —
+	// π(10) counted 1 instead of 4)
+	if limit < 2 {
+		return 0, nil
+	}
+	chunkSize := (limit - 1) / numWorkers
+	if chunkSize == 0 {
+		chunkSize = 1
+	}
 
 	for i := 0; i < numWorkers; i++ {
-		start := i*chunkSize + 2
-		end := (i + 1) * chunkSize
-		if i == numWorkers-1 {
+		start := 2 + i*chunkSize
+		end := start + chunkSize - 1
+		if end > limit {
 			end = limit
 		}
 

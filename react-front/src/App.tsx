@@ -31,7 +31,8 @@ type Note = { id: number; title: string; body: string; owner: string; created_at
 type NotePage = { items: Note[]; total: number; limit: number; offset: number };
 type Job = { id: string; type: string; status: string; result?: unknown; error?: string };
 
-function NotesView({ service, token, isLoggedIn }: { service: 'nodejs' | 'golang'; token: string; isLoggedIn: boolean }) {
+// exported for the unit tests (NotesView.test.tsx)
+export function NotesView({ service, token, isLoggedIn }: { service: 'nodejs' | 'golang'; token: string; isLoggedIn: boolean }) {
   const [page, setPage] = useState<NotePage | null>(null);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');

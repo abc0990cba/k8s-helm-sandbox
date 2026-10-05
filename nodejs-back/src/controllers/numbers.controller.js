@@ -28,7 +28,8 @@ export class NumbersController {
   }
 
   create = async (req, res, next) => {
-    const num = Number.parseInt(req.body?.number, 10);
+    // Number (not parseInt): "1.5" must not truncate into a valid integer
+    const num = Number(req.body?.number);
     if (!Number.isInteger(num)) {
       return res.status(400).send({ message: "body must be {\"number\": <int>}" });
     }

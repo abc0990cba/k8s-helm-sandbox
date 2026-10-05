@@ -47,6 +47,22 @@ jobs:
           fi
           git log --oneline -3
 
+      - name: Chart checks (render matrix — runs on every commit)
+        run: |
+          # helm lint would fail on the ONE known error (.Values.database.name
+          # lives only in secrets.yaml — AGENTS.md) — the real gate is that all
+          # four renders succeed and lan stays identical to defaults
+          docker run --rm -v "$PWD:/work" -w /work --entrypoint /bin/sh alpine/helm:3.16.4 -c '
+            set -e
+            SECRETS="--set database.name=x --set database.user=x --set database.password=x --set keycloak.adminName=admin --set keycloak.adminPassword=admin"
+            helm template ap helm-chart $SECRETS > /tmp/defaults.yaml
+            helm template ap helm-chart $SECRETS -f helm-chart/values-lan.yaml > /tmp/lan.yaml
+            diff /tmp/defaults.yaml /tmp/lan.yaml
+            helm template ap helm-chart $SECRETS -f helm-chart/values-orbstack.yaml > /dev/null
+            helm template ap helm-chart $SECRETS -f helm-chart/values-vps.yaml --set tls.email=t@e.st | grep -q ClusterIssuer
+            echo "chart renders OK (defaults, lan==defaults, orbstack, vps+tls)"
+          '
+
       - name: Detect changed services
         run: |
           SERVICES=""
@@ -60,6 +76,30 @@ jobs:
           fi
           echo "SERVICES=$SERVICES" >> "$GITHUB_ENV"
           echo "services to build:${SERVICES:- none}"
+
+      - name: Test changed services (gate — no tests, no push)
+        if: env.SERVICES != ''
+        run: |
+          set -e
+          # each service tests inside its pinned toolchain container; the tree
+          # is COPIED in via tar (excluding host node_modules/dist — a bind
+          # mount would smuggle darwin binaries past .dockerignore) so npm/go
+          # never touch the workspace
+          for SVC in $SERVICES; do
+            echo "::group::test $SVC"
+            case $SVC in
+              nodejs-back)
+                docker run --rm -v "$PWD/nodejs-back:/src:ro" node:22 \
+                  sh -c "mkdir -p /work && tar -C /src --exclude=./node_modules --exclude=./dist -cf - . | tar -C /work -xf - && cd /work && npm ci --no-audit --no-fund && npm test" ;;
+              golang-back)
+                docker run --rm -v "$PWD/golang-back:/src:ro" golang:1.25 \
+                  sh -c "mkdir -p /work && tar -C /src --exclude=./node_modules --exclude=./dist -cf - . | tar -C /work -xf - && cd /work && go vet ./... && go test ./..." ;;
+              react-front)
+                docker run --rm -v "$PWD/react-front:/src:ro" node:22 \
+                  sh -c "mkdir -p /work && tar -C /src --exclude=./node_modules --exclude=./dist -cf - . | tar -C /work -xf - && cd /work && rm -f package-lock.json && npm install --no-audit --no-fund && npx tsc -b && npx vitest run" ;;
+            esac
+            echo "::endgroup::"
+          done
 
       - name: Build and push changed images
         if: env.SERVICES != ''

@@ -5,7 +5,7 @@ description: The demo stack — react front, nodejs+golang backends behind Krake
 type: application
 
 # bump per chart change; the release name stays "ap" (AGENTS.md: load-bearing)
-version: 0.2.0
+version: 0.3.0
 
 # reflects the react-front image lineage (VITE_*-baked SPA), not the chart
 appVersion: "0.3.6"
