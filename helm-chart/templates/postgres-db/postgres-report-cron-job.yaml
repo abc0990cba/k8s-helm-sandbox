@@ -26,7 +26,8 @@ spec:
               image: "{{ .Values.nodejsBack.image }}:{{ .Values.nodejsBack.version }}"
               imagePullPolicy: IfNotPresent
               # the batch pattern: same app image, a batch entrypoint, no server
-              command: ["/usr/bin/node", "scripts/daily-report.js"]
+              # (args → the image's node ENTRYPOINT, which knows the binary path)
+              args: ["scripts/daily-report.js"]
               envFrom:
                 - secretRef:
                     name: {{ .Values.postgres.name }}-secret

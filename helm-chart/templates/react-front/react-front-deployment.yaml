@@ -53,6 +53,9 @@ spec:
         {{- if .Values.hardening.securityContext }}
         securityContext:
           runAsNonRoot: true
+          # numeric uid — kubelet cannot verify a NAMED image user (node) as
+          # non-root; 1000 is the uid the image's USER node resolves to
+          runAsUser: 1000
           allowPrivilegeEscalation: false
           capabilities:
             drop: ["ALL"]

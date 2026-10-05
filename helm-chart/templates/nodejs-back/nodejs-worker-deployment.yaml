@@ -36,8 +36,10 @@ spec:
       - name: {{ .Values.nodejsWorker.name }}
         image: "{{ .Values.nodejsBack.image }}:{{ .Values.nodejsBack.version }}"
         imagePullPolicy: IfNotPresent
-        # same image as the API — only the entrypoint differs (queue consumer)
-        command: ["/usr/bin/node", "src/worker.js"]
+        # same image as the API — only the entrypoint argument differs (queue
+        # consumer); `args` (not `command`) so the image's own node ENTRYPOINT
+        # resolves the binary path inside distroless
+        args: ["src/worker.js"]
         {{- if .Values.hardening.securityContext }}
         securityContext:
           runAsNonRoot: true
