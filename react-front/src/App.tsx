@@ -57,7 +57,7 @@ function App() {
 
       <CardContent>
         <div className='flex gap-5 w-full'>
-          <Button onClick={handleClickFetchButton}>fetch data</Button>
+          <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={handleClickFetchButton}>fetch data (v0.3.7)</Button>
         </div>
 
         <RadioGroup defaultValue={service} className="mt-8">
