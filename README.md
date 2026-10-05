@@ -159,8 +159,11 @@ https://designer.krakend.io/
 
 ## Roadmap
 
-- **Phase 2 — chart hardening**: Redis Deployment → StatefulSet, metrics/HPA for the Go service, metrics for Postgres/Redis, image version bumps (redis 4.0.11 / postgres 14.0 / keycloak 25.0.6 are old), resource requests for all pods.
-- **Phase 3 — VPS home lab**: move from Minikube to a real cluster on a VPS (k3s single node), ingress-nginx + cert-manager/Let's Encrypt with a real DNS name, SOPS+age for secrets, and ArgoCD syncing the cluster from this git repo so the whole setup can be restored on a fresh VPS with one bootstrap command. Not started yet.
+- ~~**Phase 2 — chart hardening**~~ (done 2026-10): Redis → StatefulSet, resource requests + probes everywhere, PodDisruptionBudgets, securityContext/non-root, full NetworkPolicy set, Keycloak 26 in production mode, image bumps (redis 7.4 / postgres 17.6 / keycloak 26.8 / krakend 2.9.4), golang metrics+HPA, migration-Job hardening, NOTES.txt + helm tests.
+- **App as a template** (done 2026-10): notes CRUD implemented by BOTH backends behind one API contract (Postgres + Redis cache with TTL), async jobs over a Redis Stream consumed by a worker Deployment, nightly report CronJob, frontend views for both. The numbers endpoints keep their fixed POST semantics.
+- **Tests + CI gates** (done 2026-10): unit tests in all three services (node:test / go test / vitest), deep end-to-end smoke (body assertions, auth negatives, worker consumption), and a CI pipeline that runs the chart render matrix + service tests before any image is pushed.
+- **Observability** (done 2026-10, orbstack): trimmed kube-prometheus-stack, ServiceMonitors for all four apps, a Grafana dashboard, and k8s-reality alert rules.
+- **Phase 3 — VPS home lab**: largely done (VPS + ArgoCD + TLS flow documented and deployable). Remaining: SOPS+age with an untracked key instead of the committed demo PGP key; multi-replica/multi-node story (PVs are single-node by design).
 
 ---
 

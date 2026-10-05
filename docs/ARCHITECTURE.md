@@ -109,11 +109,13 @@ Init container definitions live in `helm-chart/templates/_helpers.yaml`. Until R
 
 ## Known issues / shortcuts (accepted for the local pet project)
 
-1. Everything is single-replica (except KrakenD ×2); no PodDisruptionBudgets.
-2. Redis is a Deployment, not a StatefulSet (README TODO).
-3. Keycloak `start-dev` — dev mode, HTTP only, no TLS anywhere (no cert-manager).
-4. Postgres PV is hostPath (`DirectoryOrCreate`, class `manual`) — node-pinned; fine on 1-node Minikube only.
-5. react-front `VITE_*` env in the chart are no-ops — Keycloak URLs are baked into the published image.
-6. golang-back has no `/metrics` and no HPA (README TODO); postgres/redis are not scraped.
-7. `grogu-namespace.yaml` creates an unused namespace; workloads live in `default`.
-8. Old image tags: redis 4.0.11 (2018), postgres 14.0 (2021), keycloak 25.0.6, krakend 2.7.
+After the 2026-10 production-pattern pass, the list shrank to:
+
+1. Everything is single-replica (postgres, redis, keycloak, backends); the PDBs and zero-downtime strategies matter only once that changes.
+2. Postgres PV is hostPath (`DirectoryOrCreate`, class `manual`) and the `pg_dumpall` backups land on the same volume — node loss loses data AND backups; no restore automation.
+3. SOPS still uses the committed demo PGP key (swap to age + untracked key before anything real).
+4. `VITE_*` env in the chart stay no-ops — Keycloak URLs are baked into the published image (orbstack's CI build uses the `*.test` defaults).
+5. JS/Go dependency audit findings are not triaged (mostly transitive/dev-time).
+6. Metrics on orbstack fit an 8 GB machine only because the kube-prometheus-stack block trims the subchart (no alertmanager/webhooks/k3s-embedded targets, 2h retention).
+
+Already fixed in that pass (was on this list before): Redis → StatefulSet, Keycloak production mode (26.8, `--health/--metrics` on :9000; `auth.devMode` rollback), golang `/metrics` + HPA + ServiceMonitor, PDBs + NetworkPolicies + securityContext everywhere, image bumps (redis 7.4, postgres 17.6, keycloak 26.8, krakend 2.9.4), unused namespace file removed, ServiceMonitor namespace/selector bugs.

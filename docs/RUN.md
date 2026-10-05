@@ -163,11 +163,13 @@ git ship        # = pull --rebase from Gitea, then push to GitHub AND Gitea
 ```
 
 That's it. The Gitea Actions pipeline (`.gitea/workflows/build-deploy.yml`)
-builds **only the services whose files changed**, pushes them as immutable
-`git-sha` tags to the in-machine registry, records the tags in
-`helm-chart/values.yaml` (bot commit), and mirrors everything to the repo
-ArgoCD watches — which then deploys. ~4–5 minutes for a code change, ~3 for a
-config change. Watch: `make status TARGET=orbstack` or the Gitea UI at
+runs the chart render matrix on every commit, runs the changed services' unit
+tests in pinned containers (**no tests → no push**), then builds **only the
+services whose files changed**, pushes them as immutable `git-sha` tags to the
+in-machine registry, records the tags in `helm-chart/values-orbstack.yaml`
+(bot commit), and mirrors everything to the repo ArgoCD watches — which then
+deploys. ~5–6 minutes for a code change (tests + build), ~2 for a chart-only
+change. Watch: `make status TARGET=orbstack` or the Gitea UI at
 `http://localhost:3000` (Actions tab).
 
 Setup for this loop (once): `./scripts/orbstack-registry.sh` (in-cluster
@@ -183,12 +185,18 @@ sources stay current.
 
 The app serves at `http://grogu.test/` (login **demo / demo**; Keycloak
 console `http://auth.test/`, admin/admin). Smoke tests don't need hosts
-entries, but a browser does — point the names at the machine IP (the
-`orbstack-local-git.sh` output prints it):
+entries, but a browser does — one helper does it for you:
 
 ```bash
-sudo sh -c 'printf "192.168.139.195 grogu.test auth.test prom.test grafana.test\n" >> /etc/hosts'
+./scripts/dev-hosts.sh orbstack --install   # prints the block without --install
+# (equivalent to pointing grogu/auth/prom/grafana/argocd.test at the machine IP)
 ```
+
+Beyond the app, the same names expose the observability stack once it's on
+(`metrics.enabled: true` in the orbstack overlay — it is):
+`http://prom.test/` (Prometheus) and `http://grafana.test/` (Grafana, default
+`admin/prom-operator`; the "Demo stack overview" dashboard is provisioned
+automatically).
 
 - If the machine IP ever changes, re-run `./scripts/orbstack-local-git.sh`
   (it fixes inventory + ArgoCD URLs automatically) and update this line.
@@ -209,11 +217,21 @@ sudo sh -c 'printf "192.168.139.195 grogu.test auth.test prom.test grafana.test\
 > Как «жонглировать» режимами и переезжать между окружениями — пошаговый
 > разбор на русском: [ENVIRONMENTS-RU.md](./ENVIRONMENTS-RU.md).
 
-| Local (now) | Production twin (later) | Re-orientation |
+The mode is now a first-class switch — one command rewrites the repoURL, the
+registry, and moves the workflow file (each mode remembers its own image
+state):
+
+```bash
+./scripts/orbstack-mode.sh status   # where am I
+./scripts/orbstack-mode.sh github   # GitHub repo + Docker Hub + GitHub Actions
+./scripts/orbstack-mode.sh local    # back to the offline rehearsal
+```
+
+| Local (`local` mode) | Production twin (`github` mode) | Switch does |
 |---|---|---|
-| Gitea at `localhost:3000` | GitHub | push the repo to GitHub, point remotes at it |
-| `.gitea/workflows/` CI | GitHub Actions | rename folder to `.github/workflows/` |
-| registry at `<ip>:30500` | Docker Hub / ghcr.io | change `REGISTRY:` in the workflow |
+| Gitea at `localhost:3000` | GitHub | repoURL in `gitops/apps/orbstack/ap.yaml` + `group_vars/orbstack.yml` |
+| `.gitea/workflows/` CI | GitHub Actions | moves the workflow file + flips MODE/REGISTRY/REPO/runs-on |
+| registry at `<ip>:30500` | Docker Hub / ghcr.io | REGISTRY line + per-mode image state in `.local/` |
 | ArgoCD + chart | unchanged | nothing to do |
 
 ### Teardown

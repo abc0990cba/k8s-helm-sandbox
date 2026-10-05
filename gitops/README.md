@@ -95,3 +95,23 @@ pointing at a Secret holding the key.
 - **ArgoCD Notifications** — Telegram/Slack ping on sync/health events.
 - **GitLab CI** — build+scan images (trivy) on push; deliberately out of scope
   for now, deploys don't need it (ArgoCD *is* the deploy side).
+
+## Orbstack GitOps modes (local ↔ github)
+
+The orbstack target runs in one of two first-class modes, switched with
+`scripts/orbstack-mode.sh local|github` (see docs/RUN.md § Two modes). What
+differs per mode, and where it lives in this repo:
+
+| | `local` (offline rehearsal) | `github` (production shape) |
+|---|---|---|
+| repoURL in `apps/orbstack/ap.yaml` | `git://<machine-ip>:9418/gitops-origin.git` | the GitHub URL (same as lan/vps) |
+| what ArgoCD actually clones | the in-machine bare repo, mirrored by CI | GitHub main |
+| CI workflow | `.gitea/workflows/build-deploy.yml` (Gitea Actions) | `.github/workflows/build-deploy.yml` (GitHub Actions) |
+| image registry | in-cluster `registry:2` (`<ip>:30500`) | Docker Hub |
+| image state | `values-orbstack.yaml`, per-mode copies in `.local/orbstack-images-<mode>.yaml` | same file, hub tags |
+
+The AppProject (`ansible/roles/argocd/templates/project.yaml.j2`) whitelists
+the cluster-scoped kinds the chart may manage: PVs, ClusterIssuer, the
+monitoring CRDs, and the Prometheus RBAC. The CMP plugin renders with
+`helm secrets template --include-crds` — without that flag any CRD-carrying
+chart (kube-prometheus-stack) fails its whole sync.
