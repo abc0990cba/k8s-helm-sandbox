@@ -159,7 +159,7 @@ ssh-keygen -t ed25519          # if you don't have ~/.ssh/id_ed25519 yet
 ```bash
 # edit ANYTHING — react-front/, nodejs-back/, golang-back/, helm-chart/, gitops/...
 git add -A && git commit -m "my change"
-git push gitea main
+git ship        # = pull --rebase from Gitea, then push to GitHub AND Gitea
 ```
 
 That's it. The Gitea Actions pipeline (`.gitea/workflows/build-deploy.yml`)
@@ -172,6 +172,12 @@ config change. Watch: `make status TARGET=orbstack` or the Gitea UI at
 
 Setup for this loop (once): `./scripts/orbstack-registry.sh` (in-cluster
 registry) + `./scripts/orbstack-gitea.sh` (git server + CI runner).
+
+**Two git sources at once**: `git push origin main` pushes to **GitHub and
+Gitea simultaneously** (dual push URL). GitHub keeps the full story; Gitea is
+what the local CI/ArgoCD react to. CI's version-bump commits live on Gitea —
+`git ship` rebase-syncs them locally and carries them to GitHub, so both
+sources stay current.
 
 ### Browser access
 
