@@ -42,14 +42,16 @@ spec:
         command: [ "/usr/bin/krakend" ]
         args: [ "run", "-d", "-c", "/etc/krakend/krakend.json", "-p", {{ .Values.gateway.containerPort | quote }} ]
         readinessProbe:
+          # business-ready: nodejs reachable through the gateway
           httpGet:
             path: /v1/nodejs/public
             port: {{ .Values.gateway.containerPort }}
           initialDelaySeconds: 3
           periodSeconds: 10
         livenessProbe:
-          httpGet:
-            path: /healthz
+          # process-alive only: the old httpGet /healthz self-dialed the Service
+          # and restart-looped both replicas during rollout churn
+          tcpSocket:
             port: {{ .Values.gateway.containerPort }}
           initialDelaySeconds: 5
           periodSeconds: 5

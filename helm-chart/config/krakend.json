@@ -56,7 +56,7 @@
       "backend": [
         {
           "host": [
-            "http://{{ .Values.gateway.name }}-clusterip:{{ .Values.gateway.servicePort }}"
+            "http://127.0.0.1:{{ .Values.gateway.containerPort }}"
           ],
           "url_pattern": "/__debug/supu"
         }
