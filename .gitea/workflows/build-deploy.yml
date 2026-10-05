@@ -1,10 +1,16 @@
-# Local CI pipeline — builds changed services, records their image tags, and
-# mirrors main to the repo ArgoCD watches. Runs on Gitea Actions (act_runner on
-# the Mac); the syntax is GitHub-Actions compatible: moving to GitHub later =
-# rename this folder to .github/workflows/ and change REGISTRY to Docker Hub.
+# CI pipeline for the orbstack target — builds changed services, records their
+# image tags, and mirrors main to the repo ArgoCD watches.
+#
+# The SAME file runs in both GitOps modes (scripts/orbstack-mode.sh local|github
+# moves it between .gitea/workflows/ and .github/workflows/ and rewrites the
+# marked env lines below):
+#   local   Gitea Actions (act_runner on the Mac) -> in-machine registry
+#           192.168.139.195:30500, mirror to the in-machine git daemon repo.
+#   github  GitHub Actions -> Docker Hub, push back to GitHub. The shape
+#           lan/vps already use.
 #
 # No external actions are used on purpose: the job clones the repo with plain
-# git, so the pipeline works fully offline.
+# git, so the pipeline works fully offline in local mode.
 
 name: build-deploy
 on:
@@ -13,23 +19,32 @@ on:
   workflow_dispatch:
 
 env:
-  # both are IP-tracked by scripts/orbstack-local-git.sh
-  REGISTRY: 192.168.139.195:30500          # in-machine registry (http, insecure)
-  GITEA_HOST: host.orb.internal:3000       # Gitea as seen from job containers
-  REPO: ci-admin/k8s-helm-sandbox
-  # GITEA_CREDS ("ci-admin:<password>") is a repo Actions secret created by
-  # scripts/orbstack-gitea.sh; the URL embeds it as the WHOLE userinfo part
+  # ---- mode-dependent block: rewritten by scripts/orbstack-mode.sh ----------
+  MODE: local                         # local | github
+  REGISTRY: 192.168.139.195:30500     # local: in-machine registry | github: docker.io/<hub-user>
+  GIT_HOST: host.orb.internal:3000    # local: Gitea as seen from job containers
+  REPO: ci-admin/k8s-helm-sandbox     # local: Gitea slug (orbstack-gitea.sh) | github: owner/repo
+  # ---- end mode-dependent block ---------------------------------------------
+  # secrets — local:  CIGITCREDS = "ci-admin:<password>" (scripts/orbstack-gitea.sh)
+  #           github: GH_PAT (fine-grained, contents read+write),
+  #                   DOCKERHUB_USER + DOCKERHUB_TOKEN (push access to the repo)
 
 jobs:
   build-deploy:
-    runs-on: docker
+    runs-on: docker                   # MODE-dependent: docker (Gitea runner) | ubuntu-latest (GitHub)
     steps:
       - name: Checkout
         env:
           GITEA_CREDS: ${{ secrets.CIGITCREDS }}
+          GH_PAT: ${{ secrets.GH_PAT }}
         run: |
-          if [ -z "$GITEA_CREDS" ]; then echo "GITEA_CREDS is EMPTY"; exit 1; fi
-          git clone "http://${GITEA_CREDS}@${GITEA_HOST}/${REPO}.git" .
+          if [ "$MODE" = github ]; then
+            [ -n "$GH_PAT" ] || { echo "GH_PAT is EMPTY (add it as a repo Actions secret)"; exit 1; }
+            git clone "https://${GH_PAT}@github.com/${REPO}.git" .
+          else
+            [ -n "$GITEA_CREDS" ] || { echo "CIGITCREDS is EMPTY (scripts/orbstack-gitea.sh creates it)"; exit 1; }
+            git clone "http://${GITEA_CREDS}@${GIT_HOST}/${REPO}.git" .
+          fi
           git log --oneline -3
 
       - name: Detect changed services
@@ -48,7 +63,14 @@ jobs:
 
       - name: Build and push changed images
         if: env.SERVICES != ''
+        env:
+          DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USER }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
+          if [ "$MODE" = github ]; then
+            [ -n "$DOCKERHUB_USER" ] || { echo "DOCKERHUB_USER/DOCKERHUB_TOKEN are EMPTY"; exit 1; }
+            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USER" --password-stdin
+          fi
           for SVC in $SERVICES; do
             case $SVC in
               react-front) IMAGE=grogu-front ;;
@@ -61,32 +83,49 @@ jobs:
             echo "::endgroup::"
           done
 
-      - name: Record image tags + mirror main to the ArgoCD repo
+      - name: Record image tags + mirror main to the repo ArgoCD watches
         env:
           GITEA_CREDS: ${{ secrets.CIGITCREDS }}
+          GH_PAT: ${{ secrets.GH_PAT }}
         run: |
           export GIT_TRACE_CURL=0
           git config user.email "ci@orbstack.local"
           git config user.name  "orbstack-ci"
+
+          # rewrite image+version inside exactly ONE top-level block of the
+          # overlay: the block starts at "<key>:" and ends at the next
+          # top-level key, so block order in the file no longer matters
+          # (the previous per-key sed END markers silently overtook neighbours)
+          bump() {
+            awk -v key="$1" -v img="$2" -v ver="$GITHUB_SHA" '
+              $0 ~ "^"key":" { inb = 1; print; next }
+              inb && /^[^ #]/ { inb = 0 }
+              inb && /^  image:/   { print "  image: " img; next }
+              inb && /^  version:/ { print "  version: " ver; next }
+              { print }
+            ' helm-chart/values-orbstack.yaml > helm-chart/values-orbstack.yaml.tmp \
+              && mv helm-chart/values-orbstack.yaml.tmp helm-chart/values-orbstack.yaml
+          }
           for SVC in $SERVICES; do
             case $SVC in
-              react-front) KEY=front;      IMAGE=grogu-front; END=tls ;;
-              nodejs-back) KEY=nodejsBack; IMAGE=grogu-api;   END=golangBack ;;
-              golang-back) KEY=golangBack; IMAGE=golang-back; END=metrics ;;
+              react-front) bump front      "$REGISTRY/grogu-front" ;;
+              nodejs-back) bump nodejsBack "$REGISTRY/grogu-api" ;;
+              golang-back) bump golangBack "$REGISTRY/golang-back" ;;
             esac
-            # bump BOTH the full image reference and the tag — in the ORBSTACK
-            # overlay, so the shared values.yaml stays environment-neutral
-            # (GitHub mirror remains deployable for lan/vps unchanged)
-            sed -i "/^$KEY:/,/^$END:/ {
-              s|^  image: .*|  image: $REGISTRY/$IMAGE|
-              s|version: .*|version: $GITHUB_SHA|
-            }" helm-chart/values-orbstack.yaml
-            echo "bumped $KEY -> $REGISTRY/$IMAGE:$GITHUB_SHA"
+            echo "bumped $SVC -> $GITHUB_SHA"
           done
-          git add helm-chart/values.yaml
+
+          # the bump lands in the ORBSTACK overlay — stage THAT file (the
+          # shared values.yaml stays environment-neutral for lan/vps)
+          git add helm-chart/values-orbstack.yaml
           git diff --cached --quiet || git commit -m "ci: images for $GITHUB_SHA [skip ci]"
-          # everything (user commits AND the version bump) reaches ArgoCD:
-          #   1) back to Gitea (the shared source of truth)
-          git push "http://${GITEA_CREDS}@${GITEA_HOST}/${REPO}.git" HEAD:main
-          #   2) to the fast in-machine repo ArgoCD actually watches
-          git push "git://${REGISTRY%%:*}:9418/gitops-origin.git" HEAD:main
+
+          if [ "$MODE" = github ]; then
+            git push "https://${GH_PAT}@github.com/${REPO}.git" HEAD:main
+          else
+            # everything (user commits AND the version bump) reaches ArgoCD:
+            #   1) back to Gitea (the shared source of truth)
+            git push "http://${GITEA_CREDS}@${GIT_HOST}/${REPO}.git" HEAD:main
+            #   2) to the fast in-machine repo ArgoCD actually watches
+            git push "git://${REGISTRY%%:*}:9418/gitops-origin.git" HEAD:main
+          fi

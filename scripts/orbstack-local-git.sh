@@ -1,28 +1,22 @@
 #!/usr/bin/env bash
 #
-# orbstack-local-git.sh — GitHub-free GitOps rehearsal for ./start orbstack.
-#
-# ArgoCD normally syncs the chart from GitHub. While rehearsing locally you may
-# not want to push every experiment — this script points the whole pipeline at
-# a local bare repo instead:
+# orbstack-local-git.sh — the redeploy loop of LOCAL GitOps mode for
+# ./start orbstack (GitHub-free rehearsal; switch modes with
+# scripts/orbstack-mode.sh local|github).
 #
 #   Mac working repo --git push--> .local/gitops-origin.git (bare, gitignored)
 #                                     ^ served by `git daemon` INSIDE the
 #                                       k3s-orbstack machine via OrbStack's
 #                                       /mnt/mac filesystem mount (fast:
 #                                       the repo never crosses the network)
-#   ArgoCD clones git://192.168.139.195:9418/gitops-origin.git
-#
-# Requires the one-time TEMPORARY repoURL overrides (already committed on this
-# branch): ansible/group_vars/orbstack.yml repo_url + gitops/apps/orbstack/ap.yaml.
+#   ArgoCD clones git://<machine-ip>:9418/gitops-origin.git
 #
 # Usage:
 #   ./scripts/orbstack-local-git.sh            # sync local main -> local remote
 #   Then: ArgoCD picks it up within ~3 minutes, or run ./start orbstack to force.
 #
-# Switch back to GitHub:
-#   comment out repo_url in ansible/group_vars/orbstack.yml,
-#   git revert the two "TEMPORARY" commits, push to origin.
+# The full loop in this mode:
+#   git add -A && git commit -m "..." && ./scripts/orbstack-local-git.sh
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -36,6 +30,11 @@ die()  { printf '✖ %s\n' "$*" >&2; exit 1; }
 have() { command -v "$1" >/dev/null 2>&1; }
 
 have orb || die "OrbStack not found — brew install orbstack"
+
+# this script IS local mode — bail loudly if the repo is currently wired to GitHub
+[ -f "$REPO_DIR/.github/workflows/build-deploy.yml" ] \
+  && die "orbstack is in github mode — redeploy = git push origin main (switch back: scripts/orbstack-mode.sh local)"
+
 [ -d "$BARE" ] || { info "creating bare repo"; git clone --bare -q "$REPO_DIR" "$BARE"; }
 
 BRANCH=$(git -C "$REPO_DIR" rev-parse --abbrev-ref HEAD)
@@ -53,7 +52,7 @@ if [ -n "$OLD_IP" ] && [ "$OLD_IP" != "$VM_IP" ]; then
   sed -i '' "s|$OLD_IP:30500|$VM_IP:30500|g" \
     "$REPO_DIR/.gitea/workflows/build-deploy.yml" "$REPO_DIR/helm-chart/values-orbstack.yaml"
   git -C "$REPO_DIR" add ansible/inventory.ini ansible/group_vars/orbstack.yml gitops/apps/orbstack/ap.yaml .gitea/workflows/build-deploy.yml helm-chart/values-orbstack.yaml
-  git -C "$REPO_DIR" commit -q -m "TEMPORARY local remote: machine IP moved to $VM_IP (auto)"
+  git -C "$REPO_DIR" commit -q -m "orbstack: machine IP moved to $VM_IP (auto)"
 fi
 pass "machine IP: $VM_IP"
 
@@ -101,8 +100,6 @@ cat <<EOF
   Your commit → deploy loop while in this mode:
     git add -A && git commit -m "..." && ./scripts/orbstack-local-git.sh
 
-  Back to GitHub when ready:
-    1. comment out repo_url in ansible/group_vars/orbstack.yml
-    2. git revert the two commits marked TEMPORARY
-    3. git push origin main
+  Switch the whole pipeline to GitHub (CI on Actions, images on Docker Hub):
+    scripts/orbstack-mode.sh github
 EOF
