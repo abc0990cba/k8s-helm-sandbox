@@ -28,9 +28,11 @@ spec:
       selfHeal: true
     syncOptions:
       - PruneLast=true
-      # the monitoring CRDs exceed the 256KB last-applied-annotation limit —
-      # client-side apply fails with "metadata.annotations: Too long"
-      - ServerSideApply=true
+      # NOTE: do NOT enable ServerSideApply here — ArgoCD 2.13's structured
+      # merge diff can't type newer k8s status fields (e.g. terminatingReplicas)
+      # and the whole app goes Unknown with a comparison error. The monitoring
+      # CRDs are applied out-of-band (scripts/monitoring-crds.sh) instead, so
+      # nothing rendered needs SSA.
     retry:
       limit: 5
       backoff:
