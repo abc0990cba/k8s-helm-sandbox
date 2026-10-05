@@ -45,6 +45,7 @@ else
     -e "GITEA__server__DOMAIN=localhost" \
     -e "GITEA__server__ROOT_URL=http://localhost:$GITEA_PORT/" \
     -e "GITEA__security__INSTALL_LOCK=true" \
+    -e "GITEA__actions__ENABLED=true" \
     -e "GITEA__security__SECRET_KEY=$(openssl rand -hex 16)" \
     gitea/gitea:1.24 >/dev/null
 fi
