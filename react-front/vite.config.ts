@@ -12,6 +12,8 @@ export default defineConfig({
   preview: {
     port: 8080,
     strictPort: true,
+    host: true,
+    allowedHosts: ["grogu.test", "localhost"],
   },
   server: {
     port: 8080,
