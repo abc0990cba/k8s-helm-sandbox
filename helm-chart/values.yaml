@@ -40,8 +40,8 @@ kube-prometheus-stack:
   prometheusOperator:
     admissionWebhooks:
       enabled: false
-  coredns:
-    enabled: false   # would need a kube-system destination permission for one scrape
+  coreDns:
+    enabled: false   # (camelCase!) would need a kube-system destination permission for one scrape
   kubeEtcd:
     enabled: false
   kubeControllerManager:
