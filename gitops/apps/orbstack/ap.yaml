@@ -28,6 +28,9 @@ spec:
       selfHeal: true
     syncOptions:
       - PruneLast=true
+      # the monitoring CRDs exceed the 256KB last-applied-annotation limit —
+      # client-side apply fails with "metadata.annotations: Too long"
+      - ServerSideApply=true
     retry:
       limit: 5
       backoff:
