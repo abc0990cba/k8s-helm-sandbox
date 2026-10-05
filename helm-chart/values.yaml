@@ -28,6 +28,11 @@ metrics:
 # stack co-exists with the app on one small node (k3s: the embedded control
 # plane components have no scrape targets, so they're switched off entirely)
 kube-prometheus-stack:
+  # CRDs ship out-of-band (scripts/monitoring-crds.sh applies them server-side);
+  # rendering them here makes ArgoCD's structured-merge diff choke on the
+  # multi-MB schemas (comparison error) — the standard GitOps split
+  crds:
+    enabled: false
   alertmanager:
     enabled: false   # rules still fire in the Prometheus UI; no routing needed here
   # gitops-friendly: no admission webhooks (they need certs + jobs that fight
