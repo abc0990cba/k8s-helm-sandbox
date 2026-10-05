@@ -45,6 +45,11 @@ kube-prometheus-stack:
   prometheusOperator:
     admissionWebhooks:
       enabled: false
+    # with webhooks off there is no cert secret to mount — run the operator on
+    # plain HTTP (internal-only); the default true leaves the pod stuck in
+    # ContainerCreating on a missing tls-secret
+    tls:
+      enabled: false
   coreDns:
     enabled: false   # (camelCase!) would need a kube-system destination permission for one scrape
   kubeEtcd:
