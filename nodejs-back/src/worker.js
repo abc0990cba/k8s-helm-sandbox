@@ -23,11 +23,13 @@ const redis = await createClient({
   .on("error", (err) => console.error("Redis Client Error", err))
   .connect();
 
-// MK: create the stream if missing; $: only new entries (a fresh group never
-// replays history)
-await redis.xGroupCreate(JOB_STREAM, CONSUMER_GROUP, "$", { MK: true }).catch((err) => {
-  if (!String(err).includes("BUSYGROUP")) throw err;
-});
+// MKSTREAM: create the stream if missing; $: only new entries (a fresh group
+// never replays history) — raw command because node-redis 4.7 drops the MK
+// option object from xGroupCreate
+await redis.sendCommand(["XGROUP", "CREATE", JOB_STREAM, CONSUMER_GROUP, "$", "MKSTREAM"])
+  .catch((err) => {
+    if (!String(err).includes("BUSYGROUP")) throw err;
+  });
 
 const consumer = `worker-${process.env.HOSTNAME || "local"}`;
 
