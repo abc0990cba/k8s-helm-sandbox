@@ -1,0 +1,79 @@
+# Local CI pipeline — builds changed services, records their image tags, and
+# mirrors main to the repo ArgoCD watches. Runs on Gitea Actions (act_runner on
+# the Mac); the syntax is GitHub-Actions compatible: moving to GitHub later =
+# rename this folder to .github/workflows/ and change REGISTRY to Docker Hub.
+#
+# No external actions are used on purpose: the job clones the repo with plain
+# git, so the pipeline works fully offline.
+
+name: build-deploy
+on:
+  push:
+    branches: [main]
+
+env:
+  # both are IP-tracked by scripts/orbstack-local-git.sh
+  REGISTRY: 192.168.139.195:30500          # in-machine registry (http, insecure)
+  GITEA_HOST: host.orb.internal:3000       # Gitea as seen from job containers
+  REPO: ci-admin/k8s-helm-sandbox
+  # GITEA_CREDS ("ci-admin:<password>") is injected into every job container
+  # by the runner config (~/.orbstack-gitea/runner-config.yaml)
+
+jobs:
+  build-deploy:
+    runs-on: docker
+    steps:
+      - name: Checkout
+        run: |
+          git clone "http://ci-admin:${GITEA_CREDS}@${GITEA_HOST}/${REPO}.git" .
+          git log --oneline -3
+
+      - name: Detect changed services
+        run: |
+          SERVICES=""
+          if git rev-parse HEAD^ >/dev/null 2>&1; then
+            FILES=$(git diff --name-only HEAD^ HEAD || true)
+            echo "$FILES" | grep -qE '^react-front/' && SERVICES="$SERVICES react-front"
+            echo "$FILES" | grep -qE '^nodejs-back/' && SERVICES="$SERVICES nodejs-back"
+            echo "$FILES" | grep -qE '^golang-back/' && SERVICES="$SERVICES golang-back"
+          else
+            SERVICES="react-front nodejs-back golang-back"
+          fi
+          echo "SERVICES=$SERVICES" >> "$GITHUB_ENV"
+          echo "services to build:${SERVICES:- none}"
+
+      - name: Build and push changed images
+        if: env.SERVICES != ''
+        run: |
+          for SVC in $SERVICES; do
+            case $SVC in
+              react-front) IMAGE=grogu-front ;;
+              nodejs-back) IMAGE=grogu-api ;;
+              golang-back) IMAGE=golang-back ;;
+            esac
+            echo "::group::build $IMAGE"
+            docker build -t "$REGISTRY/$IMAGE:$GITHUB_SHA" "$SVC"
+            docker push "$REGISTRY/$IMAGE:$GITHUB_SHA"
+            echo "::endgroup::"
+          done
+
+      - name: Record image tags + mirror main to the ArgoCD repo
+        run: |
+          git config user.email "ci@orbstack.local"
+          git config user.name  "orbstack-ci"
+          for SVC in $SERVICES; do
+            case $SVC in
+              react-front) KEY=front ;;
+              nodejs-back) KEY=nodejsBack ;;
+              golang-back) KEY=golangBack ;;
+            esac
+            sed -i "/^$KEY:/,/^  components:/ s/version: .*/version: $GITHUB_SHA/" helm-chart/values.yaml
+            echo "bumped $KEY -> $GITHUB_SHA"
+          done
+          git add helm-chart/values.yaml
+          git diff --cached --quiet || git commit -m "ci: images for $GITHUB_SHA [skip ci]"
+          # everything (user commits AND the version bump) reaches ArgoCD:
+          #   1) back to Gitea (the shared source of truth)
+          git push "http://ci-admin:${GITEA_CREDS}@${GITEA_HOST}/${REPO}.git" HEAD:main
+          #   2) to the fast in-machine repo ArgoCD actually watches
+          git push "git://${REGISTRY%%:*}:9418/gitops-origin.git" HEAD:main

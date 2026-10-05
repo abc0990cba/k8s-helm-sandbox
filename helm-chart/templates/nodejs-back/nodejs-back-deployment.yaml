@@ -24,6 +24,7 @@ spec:
       containers:
       - name: {{ .Values.nodejsBack.name }}
         image: "{{ .Values.nodejsBack.image }}:{{ .Values.nodejsBack.version }}"
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: {{ .Values.nodejsBack.containerPort }}
         resources:

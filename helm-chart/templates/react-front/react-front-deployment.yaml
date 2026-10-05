@@ -16,6 +16,7 @@ spec:
       containers:
       - name: {{ .Values.front.name }}
         image: "{{ .Values.front.image }}:{{ .Values.front.version }}"
+        imagePullPolicy: IfNotPresent
         # args: ["http://auth.test/", "demorealm", "reactclient", "http://grogu.test/"]
         # args:
         #   - --build-arg

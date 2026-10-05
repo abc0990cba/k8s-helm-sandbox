@@ -24,6 +24,7 @@ spec:
       containers:
       - name: {{ .Values.golangBack.name }}
         image: "{{ .Values.golangBack.image }}:{{ .Values.golangBack.version }}"
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: {{ .Values.golangBack.containerPort }}
         resources:
