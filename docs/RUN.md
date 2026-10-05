@@ -206,6 +206,9 @@ sudo sh -c 'printf "192.168.139.195 grogu.test auth.test prom.test grafana.test\
 
 ### Two modes — local twins of production
 
+> Как «жонглировать» режимами и переезжать между окружениями — пошаговый
+> разбор на русском: [ENVIRONMENTS-RU.md](./ENVIRONMENTS-RU.md).
+
 | Local (now) | Production twin (later) | Re-orientation |
 |---|---|---|
 | Gitea at `localhost:3000` | GitHub | push the repo to GitHub, point remotes at it |
