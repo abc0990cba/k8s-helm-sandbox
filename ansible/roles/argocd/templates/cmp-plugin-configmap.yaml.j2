@@ -29,4 +29,7 @@ data:
             # runs in the app's checked-out source dir (helm-chart/). ArgoCD does
             # NOT pass source.plugin.env to sidecar plugins — the values files are
             # baked in here, per environment, by the argocd role (env_name).
-            helm secrets template "$ARGOCD_APP_NAME" . -f ../secrets.yaml -f values-{{ env_name }}.yaml --namespace "$ARGOCD_APP_NAMESPACE"
+            # --include-crds: kube-prometheus-stack ships its monitoring CRDs in
+            # charts/crds/ — without the flag helm template skips them and the
+            # sync fails on missing ServiceMonitor/PrometheusRule kinds.
+            helm secrets template "$ARGOCD_APP_NAME" . --include-crds -f ../secrets.yaml -f values-{{ env_name }}.yaml --namespace "$ARGOCD_APP_NAMESPACE"

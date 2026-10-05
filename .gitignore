@@ -141,3 +141,7 @@ ansible/inventory.ini
 
 # zcode session tooling
 .zcode/
+
+# macOS volume artifacts (exFAT volume sprouts them transiently)
+._*
+.DS_Store

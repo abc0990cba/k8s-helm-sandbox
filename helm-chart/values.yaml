@@ -30,6 +30,18 @@ metrics:
 kube-prometheus-stack:
   alertmanager:
     enabled: false   # rules still fire in the Prometheus UI; no routing needed here
+  # gitops-friendly: no admission webhooks (they need certs + jobs that fight
+  # declarative sync); CRD schema validation happens helm-side. 65.x gates the
+  # webhook itself under prometheusOperator.admissionWebhooks
+  admissionWebhooks:
+    enabled: false
+    patch:
+      enabled: false
+  prometheusOperator:
+    admissionWebhooks:
+      enabled: false
+  coredns:
+    enabled: false   # would need a kube-system destination permission for one scrape
   kubeEtcd:
     enabled: false
   kubeControllerManager:
