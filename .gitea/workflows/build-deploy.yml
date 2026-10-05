@@ -18,7 +18,7 @@ env:
   GITEA_HOST: host.orb.internal:3000       # Gitea as seen from job containers
   REPO: ci-admin/k8s-helm-sandbox
   # GITEA_CREDS ("ci-admin:<password>") is a repo Actions secret created by
-  # scripts/orbstack-gitea.sh
+  # scripts/orbstack-gitea.sh; the URL embeds it as the WHOLE userinfo part
 
 jobs:
   build-deploy:
@@ -30,7 +30,7 @@ jobs:
         run: |
           echo "creds-len at checkout: ${#GITEA_CREDS}"
           if [ -z "$GITEA_CREDS" ]; then echo "GITEA_CREDS is EMPTY"; exit 1; fi
-          git clone "http://ci-admin:${GITEA_CREDS}@${GITEA_HOST}/${REPO}.git" .
+          git clone "http://${GITEA_CREDS}@${GITEA_HOST}/${REPO}.git" .
           git log --oneline -3
 
       - name: Detect changed services
@@ -84,6 +84,6 @@ jobs:
           git diff --cached --quiet || git commit -m "ci: images for $GITHUB_SHA [skip ci]"
           # everything (user commits AND the version bump) reaches ArgoCD:
           #   1) back to Gitea (the shared source of truth)
-          git push "http://ci-admin:${GITEA_CREDS}@${GITEA_HOST}/${REPO}.git" HEAD:main
+          git push "http://${GITEA_CREDS}@${GITEA_HOST}/${REPO}.git" HEAD:main
           #   2) to the fast in-machine repo ArgoCD actually watches
           git push "git://${REGISTRY%%:*}:9418/gitops-origin.git" HEAD:main
