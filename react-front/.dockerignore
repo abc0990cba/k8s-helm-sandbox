@@ -1,0 +1,7 @@
+# keep the build context clean — the host's node_modules shadows the npm ci
+# install inside the image (stale dependency types broke `tsc -b` once already)
+node_modules
+dist
+.git
+Dockerfile
+.dockerignore
