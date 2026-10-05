@@ -325,6 +325,11 @@ spec:
         - podSelector:
             matchLabels:
               app: {{ .Values.gateway.components }}
+        {{- if .Values.metrics.enabled }}
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+        {{- end }}
       ports:
         - port: {{ .Values.auth.containerPort }}
           protocol: TCP

@@ -1,0 +1,20 @@
+{{- if and .Values.metrics.enabled (not .Values.auth.devMode) }}
+# Keycloak's management interface carries /metrics when the server runs with
+# --metrics-enabled (production mode in the chart); the Service needs a
+# management port for the scraper to target
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ .Values.auth.name }}-service-monitor
+  namespace: {{ .Values.namespace }}
+  labels:
+    release: {{ .Release.Name }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.auth.components }}
+  endpoints:
+  - port: management
+    interval: 15s
+    path: /metrics
+{{- end }}

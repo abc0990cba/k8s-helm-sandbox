@@ -9,5 +9,11 @@ spec:
     - name: http
       port: {{ .Values.auth.servicePort }}
       targetPort: {{ .Values.auth.containerPort }}
+    {{- if and .Values.metrics.enabled (not .Values.auth.devMode) }}
+    # management interface (health + metrics) — scraped by the ServiceMonitor
+    - name: management
+      port: {{ .Values.auth.managementPort }}
+      targetPort: {{ .Values.auth.managementPort }}
+    {{- end }}
   selector:
     app: {{ .Values.auth.components }}

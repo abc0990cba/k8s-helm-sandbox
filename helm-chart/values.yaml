@@ -23,6 +23,44 @@ loadGenerator:
 metrics:
   enabled: false
 
+# kube-prometheus-stack footprint tuning — values are keyed by the subchart's
+# real name; metrics.enabled above is just the install gate. Trimmed so the
+# stack co-exists with the app on one small node (k3s: the embedded control
+# plane components have no scrape targets, so they're switched off entirely)
+kube-prometheus-stack:
+  alertmanager:
+    enabled: false   # rules still fire in the Prometheus UI; no routing needed here
+  kubeEtcd:
+    enabled: false
+  kubeControllerManager:
+    enabled: false
+  kubeScheduler:
+    enabled: false
+  kubeProxy:
+    enabled: false
+  kubeDns:
+    enabled: false
+  prometheus:
+    prometheusSpec:
+      retention: 2h
+      resources:
+        requests:
+          cpu: 200m
+          memory: 512Mi
+        limits:
+          cpu: "1"
+          memory: 1Gi
+      # scrape every ServiceMonitor in the namespace, not just helm-release-labeled ones
+      serviceMonitorSelectorNilUsesHelmValues: false
+  grafana:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 100Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+
 namespace: default
 
 host:

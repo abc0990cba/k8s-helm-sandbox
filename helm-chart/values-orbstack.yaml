@@ -30,6 +30,6 @@ tls:
                    # ansible/group_vars/orbstack.yml
 
 metrics:
-  enabled: false   # the 8 GB machine runs the ~5 Gi app stack comfortably;
-                   # add kube-prometheus-stack (~2 Gi more) only if you raise
-                   # the machine's memory (`orb config` / re-create)
+  enabled: true    # kube-prometheus-stack, trimmed by the kube-prometheus-stack
+                   # values block in values.yaml (~1.5 Gi on top of the ~5 Gi app
+                   # stack — fits the 8 GB machine next to 3.5 Gi headroom)

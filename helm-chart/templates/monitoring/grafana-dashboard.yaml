@@ -1,0 +1,74 @@
+{{- if .Values.metrics.enabled }}
+# Grafana dashboard, auto-loaded by the kube-prometheus-stack's sidecar (the
+# grafana_dashboard label). Deliberately built on always-present k8s metrics
+# (kube-state-metrics + cAdvisor) so it renders on day one; app-specific
+# panels (krakend/golang counters) can be added once the metrics are spotted
+# in Prometheus.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-demo-dashboard
+  namespace: {{ .Values.namespace }}
+  labels:
+    grafana_dashboard: "1"
+data:
+  demo-overview.json: |
+    {
+      "title": "Demo stack overview ({{ .Release.Name }})",
+      "uid": "demo-overview",
+      "timezone": "browser",
+      "refresh": "30s",
+      "time": { "from": "now-1h", "to": "now" },
+      "panels": [
+        {
+          "id": 1,
+          "title": "Pods by workload (default ns)",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+          "targets": [{ "expr": "count(kube_pod_info{namespace=\"{{ .Values.namespace }}\"})", "legendFormat": "pods" }]
+        },
+        {
+          "id": 2,
+          "title": "CPU by pod (millicores)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+          "targets": [{ "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"{{ .Values.namespace }}\", container!=\"\", image!=\"\"}[5m])) by (pod) * 1000", "legendFormat": "{{"{{pod}}"}}" }]
+        },
+        {
+          "id": 3,
+          "title": "Memory working set by pod (MiB)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+          "targets": [{ "expr": "sum(container_memory_working_set_bytes{namespace=\"{{ .Values.namespace }}\", container!=\"\", image!=\"\"}) by (pod) / 1048576", "legendFormat": "{{"{{pod}}"}}" }]
+        },
+        {
+          "id": 4,
+          "title": "HPA replicas (current / target)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+          "targets": [
+            { "expr": "kube_horizontalpodautoscaler_status_current_replicas{namespace=\"{{ .Values.namespace }}\"}", "legendFormat": "{{"{{horizontalpodautoscaler}}"}} current" },
+            { "expr": "kube_horizontalpodautoscaler_spec_max_replicas{namespace=\"{{ .Values.namespace }}\"}", "legendFormat": "{{"{{horizontalpodautoscaler}}"}} max" }
+          ]
+        },
+        {
+          "id": 5,
+          "title": "Container restarts (1h)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+          "targets": [{ "expr": "increase(kube_pod_container_status_restarts_total{namespace=\"{{ .Values.namespace }}\"}[1h])", "legendFormat": "{{"{{pod}}"}}" }]
+        },
+        {
+          "id": 6,
+          "title": "Available vs desired replicas",
+          "type": "timeseries",
+          "gridPos": { "h": 6, "w": 24, "x": 0, "y": 20 },
+          "targets": [
+            { "expr": "kube_deployment_status_replicas_available{namespace=\"{{ .Values.namespace }}\"}", "legendFormat": "{{"{{deployment}}"}} available" },
+            { "expr": "kube_deployment_spec_replicas{namespace=\"{{ .Values.namespace }}\"}", "legendFormat": "{{"{{deployment}}"}} desired" }
+          ]
+        }
+      ],
+      "schemaVersion": 39
+    }
+{{- end }}

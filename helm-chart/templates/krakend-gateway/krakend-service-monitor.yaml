@@ -1,0 +1,20 @@
+{{- if .Values.metrics.enabled }}
+# KrakenD exposes its Prometheus exporter on gateway.metricsTargetPort
+# (config/krakend.json telemetry/opentelemetry exporter); the Service already
+# publishes it as http-metrics
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ .Values.gateway.name }}-service-monitor
+  namespace: {{ .Values.namespace }}
+  labels:
+    release: {{ .Release.Name }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.gateway.components }}
+  endpoints:
+  - port: http-metrics
+    interval: 10s
+    path: /metrics
+{{- end }}

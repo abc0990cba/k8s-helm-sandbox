@@ -1,0 +1,45 @@
+{{- if .Values.metrics.enabled }}
+# Alerting rules — k8s-reality alerts that hold on any target environment
+# (single-node k3s included); thresholds are deliberately conservative so the
+# demo doesn't cry wolf
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ .Release.Name }}-demo-rules
+  namespace: {{ .Values.namespace }}
+  labels:
+    release: {{ .Release.Name }}
+spec:
+  groups:
+    - name: demo.availability
+      rules:
+        - alert: DeploymentHasNoReadyPods
+          expr: kube_deployment_status_replicas_available{namespace="{{ .Values.namespace }}"} == 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "deployment {{"{{ $labels.deployment }}"}} has zero ready pods for 2m"
+        - alert: PodRestartingFrequently
+          expr: increase(kube_pod_container_status_restarts_total{namespace="{{ .Values.namespace }}"}[30m]) > 3
+          for: 0m
+          labels:
+            severity: warning
+          annotations:
+            summary: "pod {{"{{ $labels.pod }}"}} restarted {{"{{ $value }}"}}x in 30m (crashloop?)"
+        - alert: HorizontalPodAutoscalerAtMax
+          expr: kube_horizontalpodautoscaler_status_current_replicas{namespace="{{ .Values.namespace }}"}
+                >= kube_horizontalpodautoscaler_spec_max_replicas{namespace="{{ .Values.namespace }}"}
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "HPA {{"{{ $labels.horizontalpodautoscaler }}"}} is pinned at max replicas for 15m (CPU-starved or under load)"
+        - alert: StatefulSetPodNotReady
+          expr: kube_statefulset_status_replicas_ready{namespace="{{ .Values.namespace }}"} < kube_statefulset_status_replicas{namespace="{{ .Values.namespace }}"}
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "statefulset {{"{{ $labels.statefulset }}"}} has not-ready replicas for 5m (postgres/redis!)"
+{{- end }}
