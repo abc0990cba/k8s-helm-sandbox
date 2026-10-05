@@ -154,17 +154,24 @@ ssh-keygen -t ed25519          # if you don't have ~/.ssh/id_ed25519 yet
   (`127.0.0.1:16443 → machine:6443`) the script manages; smoke tests use
   `curl --resolve`, so they never depend on hosts files.
 
-### Everyday loop — change → deploy
+### Everyday loop — change → deploy (one command)
 
 ```bash
-# edit helm-chart/, gitops/ or ansible/ ...
+# edit ANYTHING — react-front/, nodejs-back/, golang-back/, helm-chart/, gitops/...
 git add -A && git commit -m "my change"
-./scripts/orbstack-local-git.sh       # push local main -> the local remote
-./start orbstack --skip-bootstrap    # optional: force the sync + re-run smokes
+git push gitea main
 ```
 
-ArgoCD also auto-syncs on its own within ~3 minutes of each push. Watch with
-`make status TARGET=orbstack`.
+That's it. The Gitea Actions pipeline (`.gitea/workflows/build-deploy.yml`)
+builds **only the services whose files changed**, pushes them as immutable
+`git-sha` tags to the in-machine registry, records the tags in
+`helm-chart/values.yaml` (bot commit), and mirrors everything to the repo
+ArgoCD watches — which then deploys. ~4–5 minutes for a code change, ~3 for a
+config change. Watch: `make status TARGET=orbstack` or the Gitea UI at
+`http://localhost:3000` (Actions tab).
+
+Setup for this loop (once): `./scripts/orbstack-registry.sh` (in-cluster
+registry) + `./scripts/orbstack-gitea.sh` (git server + CI runner).
 
 ### Browser access
 
@@ -191,17 +198,14 @@ sudo sh -c 'printf "192.168.139.195 grogu.test auth.test prom.test grafana.test\
   IP (above). Back to local: flip the hosts entries to `127.0.0.1`, then
   `./start` (it restores the tunnel).
 
-### Two sync modes
+### Two modes — local twins of production
 
-| | **local remote** (default on this Mac) | **GitHub** |
+| Local (now) | Production twin (later) | Re-orientation |
 |---|---|---|
-| ArgoCD clones from | `git://<machine-ip>:9418/gitops-origin.git` | `github.com/abc0990cba/k8s-helm-sandbox` |
-| Deploy your changes | `./scripts/orbstack-local-git.sh` | `git push` |
-| Needs internet/GitHub | no | yes |
-| Switch | — | comment `repo_url` in `ansible/group_vars/orbstack.yml`, `git revert` the commits marked **TEMPORARY**, `git push origin main` |
-
-The same GitHub mode is what `./start lan` and `./start vps` use — rehearsing
-there is a matter of pointing the inventory at those machines.
+| Gitea at `localhost:3000` | GitHub | push the repo to GitHub, point remotes at it |
+| `.gitea/workflows/` CI | GitHub Actions | rename folder to `.github/workflows/` |
+| registry at `<ip>:30500` | Docker Hub / ghcr.io | change `REGISTRY:` in the workflow |
+| ArgoCD + chart | unchanged | nothing to do |
 
 ### Teardown
 
