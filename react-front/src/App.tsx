@@ -71,6 +71,7 @@ export function NotesView({ service, token, isLoggedIn }: { service: 'nodejs' | 
 
   return (
     <div className="space-y-4">
+      testing argocd work msg
       <CardDescription>
         CRUD served by the <b>{service}</b> backend (the golang one implements the same contract) —
         Postgres storage, Redis read-through cache on GET by id
@@ -204,7 +205,7 @@ function App() {
   const [data, setData] = useState(null);
 
   useEffect(() => {
-    if(token) setDecodedToken(jwtDecode(token));
+    if (token) setDecodedToken(jwtDecode(token));
   }, [token])
 
   const handleClickFetchButton = () => {
@@ -215,7 +216,7 @@ function App() {
     };
 
     const url =
-       tab === 'public'
+      tab === 'public'
         ? service === 'nodejs' ? NODEJS_PUBLIC_URL : GOLANG_PUBLIC_URL
         : service === 'nodejs' ? NODEJS_PRIVATE_URL : GOLANG_PRIVATE_URL
 
@@ -244,22 +245,22 @@ function App() {
           <>
             <RadioGroup defaultValue={service} className="mt-8">
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="nodejs" id="nodejs" onClick={() => setService('nodejs')}/>
+                <RadioGroupItem value="nodejs" id="nodejs" onClick={() => setService('nodejs')} />
                 <Label htmlFor="nodejs">nodejs</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="golang" id="golang" onClick={() => setService('golang')}/>
+                <RadioGroupItem value="golang" id="golang" onClick={() => setService('golang')} />
                 <Label htmlFor="golang">golang</Label>
               </div>
             </RadioGroup>
 
             <RadioGroup defaultValue={tab} className="mt-8">
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="private" id="private" onClick={() => setTab('private')}/>
+                <RadioGroupItem value="private" id="private" onClick={() => setTab('private')} />
                 <Label htmlFor="private">private</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="public" id="public" onClick={() => setTab('public')}/>
+                <RadioGroupItem value="public" id="public" onClick={() => setTab('public')} />
                 <Label htmlFor="public">public</Label>
               </div>
             </RadioGroup>
@@ -311,21 +312,21 @@ function App() {
         )}
 
         <Card className="mt-8">
-            <CardHeader>
-              <CardTitle>Token</CardTitle>
-              <CardDescription>user token info</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <pre className="bg-muted p-4 rounded-md overflow-x-auto">
-                  {isLoggedIn && decodedToken
-                    ? <code>{JSON.stringify(decodedToken, null, 2)}</code>
-                    : <code>Not Authenticated</code>
-                  }
-              </pre>
-            </CardContent>
+          <CardHeader>
+            <CardTitle>Token</CardTitle>
+            <CardDescription>user token info</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <pre className="bg-muted p-4 rounded-md overflow-x-auto">
+              {isLoggedIn && decodedToken
+                ? <code>{JSON.stringify(decodedToken, null, 2)}</code>
+                : <code>Not Authenticated</code>
+              }
+            </pre>
+          </CardContent>
         </Card>
-    </CardContent>
-  </Card>
+      </CardContent>
+    </Card>
   )
 }
 
