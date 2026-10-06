@@ -119,7 +119,7 @@
 | `gitops/apps/orbstack/ap.yaml` | **объект Application для ArgoCD**: какой репозиторий, какая ветка, какие values-файлы использовать |
 | `react-front/` | исходники React-приложения (то, что вы видите в браузере) |
 | `react-front/Dockerfile` | как из исходников собирается образ фронта |
-| `nodejs-back/`, `golang-back/` | исходники двух API-бэкендов |
+| `nodejs-back/`, `golang-back/`, `rust-back/` | исходники трёх API-бэкендов (links+jobs на libSQL, notes на PostgreSQL, аналитика кликов на DuckDB) |
 | `helm-chart/config/krakend.json` | конфиг API-шлюза KrakenD (маршруты `/api/...`) |
 | `helm-chart/config/realm-export.json` | настройки Keycloak: realm, пользователь demo, клиент reactclient |
 | `ansible/` | автоматическая настройка машины (k3s, ingress-nginx, ArgoCD) |
@@ -255,7 +255,7 @@ git commit -m "кнопка fetch data стала зелёной (front 0.3.7)"
 
 1. коммит попадает в Gitea;
 2. Gitea Actions запускает пайплайн: определяет, какие сервисы изменились
-   (по путям `react-front/`, `nodejs-back/`, `golang-back/`), собирает
+   (по путям `react-front/`, `nodejs-back/`, `golang-back/`, `rust-back/`), собирает
    **только их** образы и пушит их в registry с тегом = короткий git-SHA
    (неизменяемые теги — как в проде);
 3. ботом-коммитом обновляет версии образов в `helm-chart/values.yaml`
