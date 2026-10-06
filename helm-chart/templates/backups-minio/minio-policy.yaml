@@ -1,0 +1,36 @@
+{{- if and .Values.backups.minio.enabled .Values.hardening.netpol }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: minio-policy
+  namespace: {{ .Values.namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app: {{ .Values.backups.minio.name }}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        # the sync CronJob (and anything else wearing the backup principal)
+        - podSelector:
+            matchLabels:
+              app: {{ .Values.postgres.migration.components }}
+      ports:
+        - port: {{ .Values.backups.minio.servicePort }}
+          protocol: TCP
+        - port: {{ .Values.backups.minio.consolePort }}
+          protocol: TCP
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+{{- end }}

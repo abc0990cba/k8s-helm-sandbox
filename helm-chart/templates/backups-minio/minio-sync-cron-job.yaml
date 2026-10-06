@@ -1,0 +1,72 @@
+{{- if .Values.backups.minio.enabled }}
+# daily off-box-in-cluster copy: mirrors the pg_dump PVC (the same volume the
+# existing pg_dumpall CronJob writes) into a MinIO bucket. `mc mirror` is
+# idempotent, so schedule slack is harmless. app: migration reuses the shared
+# backup principal label (netpol allow-lists).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Values.backups.minio.name }}-sync-cron-job
+  namespace: {{ .Values.namespace }}
+spec:
+  schedule: "30 2 * * *"   # after the @daily pg_dumpall, before the cleaner
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 3600
+      template:
+        metadata:
+          labels:
+            app: {{ .Values.postgres.migration.components }}
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          {{- if .Values.hardening.securityContext }}
+          securityContext:
+            seccompProfile:
+              type: RuntimeDefault
+          {{- end }}
+          initContainers:
+            - name: wait-for-minio
+              image: "{{ .Values.backups.minio.mcImage }}:{{ .Values.backups.minio.mcVersion }}"
+              command: ["sh", "-c"]
+              args:
+                - |
+                  until mc alias set pending "http://{{ .Values.backups.minio.name }}-clusterip:{{ .Values.backups.minio.servicePort }}" "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" 2>/dev/null; do
+                    echo "waiting for minio"
+                    sleep 2
+                  done
+              envFrom:
+                - secretRef:
+                    name: {{ .Values.backups.minio.name }}-secret
+          containers:
+            - name: {{ .Values.backups.minio.name }}-sync
+              image: "{{ .Values.backups.minio.mcImage }}:{{ .Values.backups.minio.mcVersion }}"
+              imagePullPolicy: IfNotPresent
+              command: ["sh", "-c"]
+              args:
+                - |
+                  set -e
+                  mc alias set local "http://{{ .Values.backups.minio.name }}-clusterip:{{ .Values.backups.minio.servicePort }}" "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
+                  mc mb --ignore-existing "local/{{ .Values.backups.minio.bucket }}"
+                  # oldest-first retention: 7 days of dumps in S3, mirroring the
+                  # PVC-side cleaner policy. The PVC root also holds the live
+                  # postgres data dir (mounted via subPath by the StatefulSet)
+                  # — exclude it, the dumps are the pg-backup-*.db files
+                  mc mirror --overwrite --older-than 168h --exclude "data/**" /backups "local/{{ .Values.backups.minio.bucket }}"
+                  mc ls --recursive "local/{{ .Values.backups.minio.bucket }}" | tail -5
+              envFrom:
+                - secretRef:
+                    name: {{ .Values.backups.minio.name }}-secret
+              volumeMounts:
+                - name: dumps
+                  mountPath: /backups
+                  readOnly: true
+          volumes:
+            - name: dumps
+              persistentVolumeClaim:
+                claimName: {{ .Values.postgres.name }}-pvc
+{{- end }}

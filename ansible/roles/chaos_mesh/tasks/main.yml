@@ -1,0 +1,21 @@
+---
+# Opt-in (chaos_mesh_enabled) — installs Chaos Mesh (CRDs + controller + dashboard)
+# for the staged experiments in docs/CHAOS.md. Helm-based: the upstream bundle
+# is multi-manifest and the chart is the documented path; helm itself is
+# installed by the k3s role.
+- name: Add the chaos-mesh helm repo
+  become_user: root
+  ansible.builtin.command: >
+    helm repo add chaos-mesh https://charts.chaos-mesh.org
+  changed_when: false
+
+- name: Install Chaos Mesh
+  ansible.builtin.command: >
+    helm upgrade --install chaos-mesh chaos-mesh/chaos-mesh
+    --namespace chaos-mesh --create-namespace
+    --version {{ chaos_mesh_chart_version }}
+    --set chaosdSecurityMode=privileged
+    --set dashboard.create=true
+    --wait --timeout 300s
+  register: chaos_install
+  changed_when: "'has no deployed releases' not in chaos_install.stderr"

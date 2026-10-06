@@ -1,6 +1,11 @@
-{{- if not .Values.rustBack.rollout.enabled }}
-apiVersion: apps/v1
-kind: Deployment
+{{- if .Values.rustBack.rollout.enabled }}
+# Progressive delivery for rust-back: replaces the Deployment (same pod
+# template) with a canary Rollout. Replica-ratio canary (no trafficRouting) —
+# new pods join the same Service, so the traffic split follows pod counts.
+# The AnalysisTemplate gates the final 100% step on the stream consumer
+# staying healthy (errors ~0, no crashloops) — needs metrics.enabled.
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
 metadata:
   name: {{ .Values.rustBack.name }}-deployment
   namespace: {{ .Values.namespace }}
@@ -8,16 +13,26 @@ metadata:
     app: {{ .Values.rustBack.components }}
     stack: {{ .Values.rustBack.stack }}
 spec:
+  replicas: {{ .Values.rustBack.replicas }}
+  revisionHistoryLimit: 3
   selector:
     matchLabels:
       app: {{ .Values.rustBack.components }}
       stack: {{ .Values.rustBack.stack }}
-  replicas: {{ .Values.rustBack.replicas }}
   strategy:
-    type: RollingUpdate
-    rollingUpdate:
+    canary:
+      # single-replica DuckDB can't canary; raise rustBack.replicas first
       maxSurge: 1
       maxUnavailable: 0
+      steps:
+        - setWeight: 25
+        - pause: { duration: 1m }
+        - setWeight: 50
+        - pause: { duration: 2m }
+        - analysis:
+            templates:
+              - templateName: {{ .Values.rustBack.name }}-canary
+        - setWeight: 100
   template:
     metadata:
       labels:
@@ -25,10 +40,6 @@ spec:
         stack: {{ .Values.rustBack.stack }}
     spec:
       automountServiceAccountToken: false
-      # fsGroup is NOT gated on hardening: the DuckDB file lives on the PVC and
-      # the distroless nonroot (65532) process must own it. The volume is
-      # mounted without subPath, so plain fsGroup ownership works (postgres
-      # needed the init-chown dance only because subPath defeats fsGroup).
       securityContext:
         fsGroup: 65532
         {{- if .Values.hardening.securityContext }}
@@ -43,9 +54,7 @@ spec:
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: {{ .Values.rustBack.containerPort }}
-          # /metrics is served on this same port (prometheus crate route)
         {{- if .Values.hardening.securityContext }}
-        # 65532 = the nonroot uid of the distroless cc runtime stage
         securityContext:
           runAsNonRoot: true
           runAsUser: 65532

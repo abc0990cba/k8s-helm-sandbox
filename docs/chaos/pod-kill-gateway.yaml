@@ -1,0 +1,18 @@
+# PodChaos: kill ONE gateway replica once. Proves: the second replica + the
+# PDB (maxUnavailable 1) + the zero-downtime rollout strategy absorb it —
+# the SPA and the smoke suite should not notice.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: kill-gateway-once
+  namespace: default
+spec:
+  action: pod-kill
+  mode: one
+  selector:
+    namespaces:
+      - default
+    labelSelectors:
+      app: gateway
+  gracePeriod: 0
+  duration: "30s"

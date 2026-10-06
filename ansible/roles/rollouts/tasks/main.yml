@@ -1,0 +1,16 @@
+---
+# Opt-in (rollouts_enabled) — installs the Argo Rollouts controller so the
+# chart can render rust-back as a Rollout (rustBack.rollout.enabled) instead
+# of a plain Deployment. Must run BEFORE the first ArgoCD sync that carries
+# the Rollout resource (the CRDs ship with the controller, not the chart).
+- name: Apply Argo Rollouts controller
+  ansible.builtin.command: >
+    k3s kubectl apply
+    -f https://github.com/argoproj/argo-rollouts/releases/download/{{ rollouts_version }}/install.yaml
+  register: rollouts_apply
+  changed_when: "'unchanged' not in rollouts_apply.stdout"
+
+- name: Wait for the rollouts controller
+  ansible.builtin.command: >
+    k3s kubectl -n argo-rollouts rollout status deployment/argo-rollouts --timeout=300s
+  changed_when: false

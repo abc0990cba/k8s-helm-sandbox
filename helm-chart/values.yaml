@@ -199,6 +199,41 @@ rustBack:
     memory: "256Mi"
     cpu: "500m"
   storage: 200Mi
+  # progressive delivery: when true, the Deployment is replaced by an Argo
+  # Rollout with canary steps + a metrics-backed AnalysisTemplate. Requires
+  # the argo-rollouts controller (ansible role `rollouts`, rollouts_enabled)
+  # AND metrics.enabled (the analysis reads prometheus); the controller must
+  # exist before the first sync carrying the Rollout resource. Off by default
+  # because single-replica DuckDB makes canary pointless until replicas > 1.
+  rollout:
+    enabled: false
+
+# event-driven autoscaling: when true, the nodejs-worker additionally gets a
+# KEDA ScaledObject scaling on the redis `jobs` stream backlog. Requires the
+# keda operator (ansible role `keda`, keda_enabled). Off by default.
+keda:
+  enabled: false
+  maxWorkerReplicas: 5
+  pendingEntriesThreshold: "5"
+
+# self-hosted S3 for the backups story: when true, a single-tenant MinIO
+# StatefulSet + a daily `mc mirror` CronJob (postgres dumps PVC → bucket)
+# are installed. OFF by default; for the root password use --set (demo
+# default below is minioadmin/minioadmin).
+backups:
+  minio:
+    enabled: false
+    name: minio
+    image: quay.io/minio/minio
+    version: "RELEASE.2025-04-22T22-12-26Z"
+    mcImage: quay.io/minio/mc
+    mcVersion: "RELEASE.2025-04-08T15-39-49Z"
+    servicePort: 9000
+    consolePort: 9001
+    storage: 5Gi
+    rootUser: minioadmin
+    rootPassword: minioadmin
+    bucket: grogu-backups
 
 golangBack:
   name: golang-back

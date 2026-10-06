@@ -10,4 +10,7 @@
     - { role: ingress_nginx, tags: ["ingress", "bootstrap"] }
     - { role: cert_manager, tags: ["certs", "bootstrap"], when: tls_enabled | bool }
     - { role: argocd, tags: ["argocd", "bootstrap"] }
+    - { role: rollouts, tags: ["rollouts"], when: rollouts_enabled | default(false) | bool }
+    - { role: keda, tags: ["keda"], when: keda_enabled | default(false) | bool }
+    - { role: chaos_mesh, tags: ["chaos"], when: chaos_mesh_enabled | default(false) | bool }
     - { role: backups_offsite, tags: ["backups"], when: backup_rclone_remote is defined }

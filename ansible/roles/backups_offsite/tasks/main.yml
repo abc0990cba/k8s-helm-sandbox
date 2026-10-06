@@ -29,12 +29,17 @@
     dest: /etc/systemd/system/grogu-offsite-backup.service
     content: |
       [Unit]
-      Description=Ship postgres dumps off-box (rclone)
+      Description=Ship database storage off-box (rclone: postgres dumps + libsql + duckdb)
 
       [Service]
       Type=oneshot
-      # shell wrapper: systemd does not expand the pvc-* glob itself
-      ExecStart=/bin/sh -c 'exec /usr/bin/rclone copy --max-age 48h --transfers 4 /var/lib/rancher/k3s/storage/pvc-*_default_postgres-pvc "{{ backup_rclone_remote }}:grogu-postgres-backups"'
+      # shell wrapper: systemd does not expand the pvc-* globs itself.
+      # postgres ships its dated SQL dumps (crash-consistent by construction).
+      # libSQL/DuckDB PVCs are LIVE SQLite/DuckDB files — the copy may catch
+      # them mid-write; acceptable for the demo DR story (a torn copy is
+      # still better than nothing), the real fix is a quiesce/snapshot step
+      # (VACUUM INTO / CHECKPOINT) before copying.
+      ExecStart=/bin/sh -c '/usr/bin/rclone copy --max-age 48h --transfers 4 /var/lib/rancher/k3s/storage/pvc-*_default_postgres-pvc "{{ backup_rclone_remote }}:grogu-postgres-backups" && /usr/bin/rclone copy --max-age 48h /var/lib/rancher/k3s/storage/pvc-*_default_libsql-data "{{ backup_rclone_remote }}:grogu-libsql-data" && /usr/bin/rclone copy --max-age 48h /var/lib/rancher/k3s/storage/pvc-*_default_rust-back-pvc "{{ backup_rclone_remote }}:grogu-duckdb-data"'
   notify: systemd daemon reload
 
 - name: Install the hourly timer

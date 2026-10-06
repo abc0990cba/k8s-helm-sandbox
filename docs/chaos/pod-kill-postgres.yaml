@@ -1,0 +1,20 @@
+# PodChaos: hard-kill the postgres pod every 2 minutes for 5 minutes total.
+# Proves: StatefulSet self-healing, backend readiness reflecting DB loss,
+# init containers gating restarts, blast radius limited to the golang domain.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: kill-postgres
+  namespace: default
+spec:
+  action: pod-kill
+  mode: one
+  selector:
+    namespaces:
+      - default
+    labelSelectors:
+      app: postgres
+  gracePeriod: 0          # SIGKILL — the "power cord" variant
+  duration: "5m"
+  scheduler:
+    cron: "@every 2m"

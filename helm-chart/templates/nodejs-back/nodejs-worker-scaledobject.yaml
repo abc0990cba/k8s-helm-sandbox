@@ -1,0 +1,29 @@
+{{- if .Values.keda.enabled }}
+# Event-driven autoscaling: the worker scales on the `jobs` stream backlog
+# (consumer group `workers`). Requires the KEDA operator (ansible role
+# `keda`, keda_enabled) — without it ArgoCD would fail this sync on the
+# missing CRD. Note KEDA owns the replica count while active; the worker
+# Deployment's `replicas:` is the resting floor.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ .Values.nodejsWorker.name }}-scaledobject
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.nodejsWorker.components }}
+    stack: {{ .Values.nodejsWorker.stack }}
+spec:
+  scaleTargetRef:
+    name: {{ .Values.nodejsWorker.name }}-deployment
+  minReplicaCount: {{ .Values.nodejsWorker.replicas }}
+  maxReplicaCount: {{ .Values.keda.maxWorkerReplicas }}
+  cooldownPeriod: 120
+  triggers:
+    - type: redisStreams
+      metadata:
+        address: "{{ .Values.redis.name }}-clusterip.{{ .Values.namespace }}.svc:{{ .Values.redis.servicePort }}"
+        stream: jobs
+        consumerGroup: workers
+        # scale out once this many delivered-but-unacked entries pile up
+        pendingEntriesCount: "{{ .Values.keda.pendingEntriesThreshold }}"
+{{- end }}

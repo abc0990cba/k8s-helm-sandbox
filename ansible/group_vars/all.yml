@@ -11,5 +11,17 @@ helm_version: "v3.16.4"
 sops_version: "v3.9.1"
 helm_secrets_version: "v4.6.2"
 
+# opt-in advanced tooling — each adds a controller (+ its CRDs) to the target.
+# Keep OFF unless the matching chart toggle is on:
+#   rollouts_enabled → rustBack.rollout.enabled (canary for rust-back)
+#   keda_enabled     → keda.enabled             (worker scales on the jobs stream)
+#   chaos_mesh_enabled → docs/CHAOS.md experiments
+rollouts_enabled: false
+keda_enabled: false
+chaos_mesh_enabled: false
+rollouts_version: "v1.7.2"
+keda_version: "v2.16.1"
+chaos_mesh_chart_version: "2.7.2"
+
 # hardened sudo user created by the common role (no-lockout: pubkey is installed first)
 deploy_user: "deploy"

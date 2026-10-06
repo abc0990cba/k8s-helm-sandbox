@@ -1,0 +1,29 @@
+{{- if and .Values.rustBack.rollout.enabled .Values.metrics.enabled }}
+# Canary gate: the analytics consumer is the business function of rust-back,
+# so the analysis watches the two failure modes that matter — redis stream
+# errors and crashloops. Needs kube-prometheus-stack (metrics.enabled) and
+# the argo-rollouts controller.
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: {{ .Values.rustBack.name }}-canary
+  namespace: {{ .Values.namespace }}
+spec:
+  metrics:
+    - name: stream-errors
+      interval: 30s
+      count: 3
+      successCondition: result[0] <= 1
+      provider:
+        prometheus:
+          address: "http://{{ .Release.Name }}-kube-prometheus-stack-prometheus.{{ .Values.namespace }}:9090"
+          query: "sum(increase(analytics_stream_errors_total{namespace=\"{{ .Values.namespace }}\"}[2m])) or vector(0)"
+    - name: no-crashloops
+      interval: 30s
+      count: 3
+      successCondition: result[0] <= 1
+      provider:
+        prometheus:
+          address: "http://{{ .Release.Name }}-kube-prometheus-stack-prometheus.{{ .Values.namespace }}:9090"
+          query: "sum(increase(kube_pod_container_status_restarts_total{namespace=\"{{ .Values.namespace }}\", pod=~\"{{ .Values.rustBack.name }}-.*\"}[3m])) or vector(0)"
+{{- end }}

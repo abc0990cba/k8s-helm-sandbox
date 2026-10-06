@@ -1,0 +1,22 @@
+# NetworkChaos: inject 300ms ± 100ms delay on redis traffic for 3 minutes.
+# Proves: bounded degradation (no restart loops — liveness probes never touch
+# redis), the stream consumers' BLOCK loops absorbing jitter.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: delay-redis
+  namespace: default
+spec:
+  action: delay
+  mode: all
+  selector:
+    namespaces:
+      - default
+    labelSelectors:
+      app: cache
+  direction: both
+  delay:
+    latency: "300ms"
+    correlation: "50"
+    jitter: "100ms"
+  duration: "3m"

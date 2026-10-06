@@ -1,0 +1,21 @@
+# StressChaos: burn one CPU core on a nodejs-back pod for 2 minutes.
+# Proves: the HPA reacts to real CPU pressure (requests are set, so the
+# utilization target is computable). Watch `kubectl get hpa nodejs-back-hpa -w`.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: cpu-stress-nodejs
+  namespace: default
+spec:
+  mode: one
+  selector:
+    namespaces:
+      - default
+    labelSelectors:
+      app: back
+      stack: nodejs
+  stressors:
+    cpu:
+      workers: 1
+      load: 100
+  duration: "2m"
