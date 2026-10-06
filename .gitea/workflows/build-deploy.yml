@@ -75,8 +75,9 @@ jobs:
             echo "$FILES" | grep -qE '^react-front/' && SERVICES="$SERVICES react-front"
             echo "$FILES" | grep -qE '^nodejs-back/' && SERVICES="$SERVICES nodejs-back"
             echo "$FILES" | grep -qE '^golang-back/' && SERVICES="$SERVICES golang-back"
+            echo "$FILES" | grep -qE '^rust-back/' && SERVICES="$SERVICES rust-back"
           else
-            SERVICES="react-front nodejs-back golang-back"
+            SERVICES="react-front nodejs-back golang-back rust-back"
           fi
           echo "SERVICES=$SERVICES" >> "$GITHUB_ENV"
           echo "services to build:${SERVICES:- none}"
@@ -101,6 +102,9 @@ jobs:
               react-front)
                 tar --exclude='._*' -C react-front -cf - . | docker run --rm -i node:22 \
                   sh -c "mkdir -p /work && tar -C /work -xf - && cd /work && rm -f package-lock.json && npm install --no-audit --no-fund && npx tsc -b && npx vitest run" ;;
+              rust-back)
+                tar --exclude='._*' --exclude='target' -C rust-back -cf - . | docker run --rm -i rust:1 \
+                  sh -c "mkdir -p /work && tar -C /work -xf - && cd /work && cargo clippy --all-targets -- -D warnings && cargo test" ;;
             esac
             echo "::endgroup::"
           done
@@ -120,6 +124,7 @@ jobs:
               react-front) IMAGE=grogu-front ;;
               nodejs-back) IMAGE=grogu-api ;;
               golang-back) IMAGE=golang-back ;;
+              rust-back)   IMAGE=rust-back ;;
             esac
             echo "::group::build $IMAGE"
             docker build -t "$REGISTRY/$IMAGE:$GITHUB_SHA" "$SVC"
@@ -155,6 +160,7 @@ jobs:
               react-front) bump front      "$REGISTRY/grogu-front" ;;
               nodejs-back) bump nodejsBack "$REGISTRY/grogu-api" ;;
               golang-back) bump golangBack "$REGISTRY/golang-back" ;;
+              rust-back)   bump rustBack   "$REGISTRY/rust-back" ;;
             esac
             echo "bumped $SVC -> $GITHUB_SHA"
           done

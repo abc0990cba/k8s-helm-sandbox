@@ -422,8 +422,55 @@ deep_smoke() {
     smoke "$svc notes GET after del " $APP "/api/v1/$svc/notes/$id" 404 || rc=1
   }
 
-  note_flow nodejs
   note_flow golang
+
+  # link shortener: create → resolve (the click) → the event must cross
+  # redis → the rust/DuckDB consumer → show up in the analytics
+  links_flow() {
+    local svc="$1" url code
+    url=$(URL_AT $APP "/api/v1/$svc/links?limit=5")
+    body=$(CURL_AT --max-time 5 "$url" 2>/dev/null)
+    printf '%s' "$body" | grep -q '"total"' \
+      || { warn "$svc links list: no pagination envelope — $(printf '%s' "$body" | head -c 120)"; rc=1; return; }
+    pass "$svc links list → pagination envelope OK"
+
+    url=$(URL_AT $APP "/api/v1/$svc/links")
+    code=$(CURL_AT -o /dev/null -w '%{http_code}' --max-time 5 -X POST \
+      -H 'Content-Type: application/json' -d '{"url":"https://nope.example"}' "$url" 2>/dev/null || echo 000)
+    [ "$code" = "401" ] || { warn "$svc links POST without token: expected 401, got $code"; rc=1; }
+    pass "$svc links POST without token → 401 (gateway enforces JWT)"
+
+    body=$(CURL_AT --max-time 5 -X POST -H 'Content-Type: application/json' \
+      -H "Authorization: Bearer $TOKEN" -d '{"url":"https://kubernetes.io/docs/home/","title":"smoke-link"}' "$url" 2>/dev/null)
+    local short
+    short=$(printf '%s' "$body" | sed -n 's/.*"code":"\([^"]*\)".*/\1/p' | head -1)
+    [ -n "$short" ] || { warn "$svc links POST: no code in response — $(printf '%s' "$body" | head -c 120)"; rc=1; return; }
+    pass "$svc links POST → created code=$short (stored in libSQL)"
+
+    body=$(CURL_AT --max-time 5 "$url/$short" 2>/dev/null)
+    printf '%s' "$body" | grep -q 'kubernetes.io' \
+      || { warn "$svc links GET by code: target url missing — $(printf '%s' "$body" | head -c 120)"; rc=1; }
+    pass "$svc links GET by code → resolves (click recorded)"
+
+    local analytics_ok=""
+    for i in $(seq 1 15); do
+      body=$(CURL_AT --max-time 5 "$(URL_AT $APP "/api/v1/rust/analytics/links/$short")" 2>/dev/null)
+      printf '%s' "$body" | grep -q '"total_clicks":[1-9]' && { analytics_ok=1; break; }
+      sleep 2
+    done
+    if [ -n "$analytics_ok" ]; then
+      pass "rust/DuckDB analytics show the click (async pipeline: redis stream → consumer)"
+    else
+      warn "analytics for $short never showed the click — $(printf '%s' "$body" | head -c 200)"
+      rc=1
+    fi
+
+    code=$(CURL_AT -o /dev/null -w '%{http_code}' --max-time 5 -X DELETE \
+      -H "Authorization: Bearer $TOKEN" "$url/$short" 2>/dev/null || echo 000)
+    [ "$code" = "204" ] || { warn "$svc links DELETE: expected 204, got $code"; rc=1; }
+    pass "$svc links DELETE → 204"
+  }
+  links_flow nodejs
 
   # async jobs: POST enqueues into a Redis Stream, the worker fills the result
   local jobs_url
@@ -478,6 +525,8 @@ else
   smoke "nodejs public api    " grogu.test "/api/v1/nodejs/public" 200
   smoke "golang public api    " grogu.test "/api/v1/golang/public" 200
   smoke "golang fibonacci(10) " grogu.test "/api/v1/golang/public/fibonacci/10" 200
+  smoke "nodejs links list    " grogu.test "/api/v1/nodejs/links" 200
+  smoke "rust analytics       " grogu.test "/api/v1/rust/analytics/summary" 200
   smoke "keycloak realm       " auth.test  "/realms/$REALM"      200
 
   info "requesting access token for seeded user '$SEED_USER' (password grant)"
@@ -505,9 +554,9 @@ else
   auth_smoke "golang private api " grogu.test "/api/v1/golang/private"
 
   # ------------------------------------------------------------- deep smoke
-  # body assertions + negative auth + the notes/jobs flows
+  # body assertions + negative auth + the notes/links/jobs flows
   if deep_smoke; then
-    pass "deep smoke (notes CRUD, auth negatives, async jobs) OK"
+    pass "deep smoke (notes CRUD, links→analytics pipeline, auth negatives, async jobs) OK"
   else
     die "deep smoke FAILED — see the steps above"
   fi
@@ -521,6 +570,7 @@ cat <<EOF
   Keycloak admin (admin / admin)         http://auth.test/      (realm: $REALM)
   API via gateway                        http://grogu.test/api/v1/nodejs/public
                                          http://grogu.test/api/v1/golang/public
+                                         http://grogu.test/api/v1/rust/analytics/summary
   Pod status                             make status
 
   Tunnels/hosts are configured; if URLs stop resolving after sleep,

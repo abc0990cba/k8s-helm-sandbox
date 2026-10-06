@@ -143,6 +143,8 @@ run_smoke() {
   smoke "nodejs public api    " "$R_APP_HOST"  "/api/v1/nodejs/public"                 200 || rc=1
   smoke "golang public api    " "$R_APP_HOST"  "/api/v1/golang/public"                 200 || rc=1
   smoke "golang fibonacci(10) " "$R_APP_HOST"  "/api/v1/golang/public/fibonacci/10"    200 || rc=1
+  smoke "nodejs links list    " "$R_APP_HOST"  "/api/v1/nodejs/links"                  200 || rc=1
+  smoke "rust analytics       " "$R_APP_HOST"  "/api/v1/rust/analytics/summary"        200 || rc=1
   smoke "keycloak realm       " "$R_AUTH_HOST" "/realms/demorealm"                     200 || rc=1
 
   local token_json token
@@ -163,7 +165,7 @@ run_smoke() {
   # once the JWT path works — everything below reuses $token)
   if [ -n "$token" ]; then
     if deep_smoke; then
-      pass "deep smoke (notes CRUD, auth negatives, async jobs) OK"
+      pass "deep smoke (notes CRUD, links→analytics pipeline, auth negatives, async jobs) OK"
     else
       warn "deep smoke FAILED — see the steps above"
       rc=1
@@ -208,8 +210,51 @@ deep_smoke() {
     smoke "$svc notes GET after del " "$R_APP_HOST" "/api/v1/$svc/notes/$id" 404 || rc=1
   }
 
-  note_flow nodejs
   note_flow golang
+
+  # link shortener: create → resolve (the click) → redis stream → rust/DuckDB
+  links_flow() {
+    local svc="$1" short
+    body=$(CURL_AT "$R_APP_HOST" "/api/v1/$svc/links?limit=5" 2>/dev/null)
+    printf '%s' "$body" | grep -q '"total"' \
+      || { warn "$svc links list: no pagination envelope — $(printf '%s' "$body" | head -c 120)"; rc=1; return; }
+    pass "$svc links list → pagination envelope OK"
+
+    code=$(CURL_AT "$R_APP_HOST" "/api/v1/$svc/links" -o /dev/null -w '%{http_code}' \
+      -X POST -H 'Content-Type: application/json' -d '{"url":"https://nope.example"}' 2>/dev/null || echo 000)
+    [ "$code" = "401" ] || { warn "$svc links POST without token: expected 401, got $code"; rc=1; }
+    pass "$svc links POST without token → 401 (gateway enforces JWT)"
+
+    body=$(CURL_AT "$R_APP_HOST" "/api/v1/$svc/links" -X POST -H 'Content-Type: application/json' \
+      -H "Authorization: Bearer $token" -d '{"url":"https://kubernetes.io/docs/home/","title":"smoke-link"}' 2>/dev/null)
+    short=$(printf '%s' "$body" | sed -n 's/.*"code":"\([^"]*\)".*/\1/p' | head -1)
+    [ -n "$short" ] || { warn "$svc links POST: no code in response — $(printf '%s' "$body" | head -c 120)"; rc=1; return; }
+    pass "$svc links POST → created code=$short (stored in libSQL)"
+
+    body=$(CURL_AT "$R_APP_HOST" "/api/v1/$svc/links/$short" 2>/dev/null)
+    printf '%s' "$body" | grep -q 'kubernetes.io' \
+      || { warn "$svc links GET by code: target url missing — $(printf '%s' "$body" | head -c 120)"; rc=1; }
+    pass "$svc links GET by code → resolves (click recorded)"
+
+    local analytics_ok=""
+    for i in $(seq 1 15); do
+      body=$(CURL_AT "$R_APP_HOST" "/api/v1/rust/analytics/links/$short" 2>/dev/null)
+      printf '%s' "$body" | grep -q '"total_clicks":[1-9]' && { analytics_ok=1; break; }
+      sleep 2
+    done
+    if [ -n "$analytics_ok" ]; then
+      pass "rust/DuckDB analytics show the click (async pipeline: redis stream → consumer)"
+    else
+      warn "analytics for $short never showed the click — $(printf '%s' "$body" | head -c 200)"
+      rc=1
+    fi
+
+    code=$(CURL_AT "$R_APP_HOST" "/api/v1/$svc/links/$short" -o /dev/null -w '%{http_code}' \
+      -X DELETE -H "Authorization: Bearer $token" 2>/dev/null || echo 000)
+    [ "$code" = "204" ] || { warn "$svc links DELETE: expected 204, got $code"; rc=1; }
+    pass "$svc links DELETE → 204"
+  }
+  links_flow nodejs
 
   # async jobs: POST enqueues into a Redis Stream, the worker fills the result
   body=$(CURL_AT "$R_APP_HOST" "/api/v1/nodejs/jobs" -X POST -H 'Content-Type: application/json' \
