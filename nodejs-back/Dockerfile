@@ -23,3 +23,4 @@ COPY --from=build /app /app
 WORKDIR /app
 
 CMD ["src/index.js"]
+# Image builds: .gitea/workflows/build-deploy.yml (tag = git SHA, registry per orbstack mode).

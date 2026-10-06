@@ -16,3 +16,5 @@ COPY --from=build /main /main
 USER nonroot:nonroot
 
 ENTRYPOINT ["/main"]
+
+# Image builds: .gitea/workflows/build-deploy.yml (tag = git SHA, registry per orbstack mode).

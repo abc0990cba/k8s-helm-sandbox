@@ -15,3 +15,5 @@ ENV PORT=8080 \
     DUCKDB_PATH=/data/clicks.duckdb
 
 ENTRYPOINT ["/rust-back"]
+
+# Image builds: .gitea/workflows/build-deploy.yml (tag = git SHA, registry per orbstack mode).
