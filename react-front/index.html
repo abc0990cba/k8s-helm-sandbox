@@ -2,9 +2,18 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React + TS</title>
+    <title>Grogu · polyglot k8s demo</title>
+    <script>
+      // set the color scheme before first paint (Mantine docs pattern) —
+      // stored preference wins, otherwise follow the OS
+      try {
+        var stored = localStorage.getItem("mantine-color-scheme-value");
+        var scheme = stored === "light" || stored === "dark" ? stored : "auto";
+        var dark = scheme === "dark" || (scheme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.dataset.mantineColorScheme = dark ? "dark" : "light";
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

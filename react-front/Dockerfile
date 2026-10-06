@@ -1,4 +1,4 @@
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 
 WORKDIR /app
 
@@ -25,7 +25,7 @@ RUN npm run build
 # non-root runtime: /app owned by `node` so vite's config loader can write its
 # temp bundle next to vite.config.ts at preview startup (COPY --chown owns the
 # content but WORKDIR leaves the directory itself root-owned — chown it too)
-FROM node:20-alpine
+FROM node:22-alpine
 
 WORKDIR /app
 
