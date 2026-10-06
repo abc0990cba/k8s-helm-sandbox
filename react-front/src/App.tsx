@@ -71,7 +71,7 @@ export function NotesView({ service, token, isLoggedIn }: { service: 'nodejs' | 
 
   return (
     <div className="space-y-4">
-      testing argocd work msg
+      testing argocd work msg v2
       <CardDescription>
         CRUD served by the <b>{service}</b> backend (the golang one implements the same contract) —
         Postgres storage, Redis read-through cache on GET by id
