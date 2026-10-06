@@ -24,3 +24,4 @@ WORKDIR /app
 
 CMD ["src/index.js"]
 # Image builds: .gitea/workflows/build-deploy.yml (tag = git SHA, registry per orbstack mode).
+# rebuilt for the polyglot split (nodejs->libsql, +rust/duckdb, react 19)
