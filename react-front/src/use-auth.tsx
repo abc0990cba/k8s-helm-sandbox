@@ -31,14 +31,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // PKCE (S256) needs the Web Crypto API, which browsers expose only in
-    // secure contexts — on the plain-HTTP *.test demo origins we fall back to
-    // the plain authorization-code flow. The https vps target keeps PKCE.
+    // secure contexts — on the plain-HTTP *.test demo origins we disable it
+    // (pkceMethod: false — kc-js 26 defaults S256 ON) and use the plain
+    // authorization-code flow. The https vps target keeps PKCE.
     const secureContext = window.crypto?.subtle !== undefined;
     client
       .init({
         onLoad: "login-required",
         checkLoginIframe: false,
-        pkceMethod: secureContext ? "S256" : undefined,
+        pkceMethod: secureContext ? "S256" : false,
         redirectUri,
       })
       .then(() => {
