@@ -1,6 +1,6 @@
 # k8s-helm-sandbox
 
-A full-stack application (React SPA → KrakenD API gateway → Node.js + Go backends → PostgreSQL/Redis, with Keycloak auth and optional Prometheus/Grafana monitoring) deployed as a single [Helm](https://helm.sh) chart on a local [Minikube](https://minikube.sigs.k8s.io) cluster.
+A polyglot full-stack application (React 19 + Mantine SPA → KrakenD API gateway → **three backends, three databases**: Go + PostgreSQL (notes), Node.js + libSQL (link shortener + async jobs), Rust + DuckDB (click analytics) — tied together by Redis Streams, with Keycloak auth and optional Prometheus/Grafana monitoring) deployed as a single [Helm](https://helm.sh) chart on a local [Minikube](https://minikube.sigs.k8s.io) cluster.
 
 **TL;DR — one command brings up the whole working app:**
 
@@ -8,7 +8,7 @@ A full-stack application (React SPA → KrakenD API gateway → Node.js + Go bac
 ./start
 ```
 
-then open [http://grogu.test/](http://grogu.test/) and log in with the pre-seeded user **demo / demo**.
+then open [http://grogu.test/](http://grogu.test/), log in with the pre-seeded user **demo / demo**, create a short link on the **Links** page and press *click* — watch the event cross nodejs → Redis stream → Rust consumer → DuckDB and light up the charts. The whole video narrative lives in [docs/DEMO-SCRIPT.md](./docs/DEMO-SCRIPT.md).
 
 **New here?** Start with the visual tour — [docs/TOUR.md](./docs/TOUR.md) shows every surface (the app's api/notes/jobs views, Keycloak, Prometheus, Grafana, ArgoCD) with live screenshots and what to try on each.
 
