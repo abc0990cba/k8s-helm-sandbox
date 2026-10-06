@@ -13,6 +13,20 @@
         var dark = scheme === "dark" || (scheme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
         document.documentElement.dataset.mantineColorScheme = dark ? "dark" : "light";
       } catch (e) {}
+
+      // keycloak-js 26 calls crypto.randomUUID() (a secure-context-only API)
+      // for its state/nonce — on the plain-HTTP *.test demo origins it does
+      // not exist, so polyfill it from getRandomValues (available everywhere).
+      // The https target has the native implementation and skips this.
+      if (window.crypto && !window.crypto.randomUUID) {
+        window.crypto.randomUUID = function () {
+          var b = window.crypto.getRandomValues(new Uint8Array(16));
+          b[6] = (b[6] & 0x0f) | 0x40;
+          b[8] = (b[8] & 0x3f) | 0x80;
+          var h = Array.from(b, function (x) { return x.toString(16).padStart(2, "0"); }).join("");
+          return h.slice(0, 8) + "-" + h.slice(8, 12) + "-" + h.slice(12, 16) + "-" + h.slice(16, 20) + "-" + h.slice(20);
+        };
+      }
     </script>
   </head>
   <body>
