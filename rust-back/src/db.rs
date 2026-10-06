@@ -54,6 +54,23 @@ pub fn now_ms() -> i64 {
         .unwrap_or(0)
 }
 
+/// UTC day-number → "YYYY-MM-DD", Howard Hinnant's civil_from_days.
+/// Pure integer math: the netpol gives this pod no internet, so duckdb must
+/// never reach for the ICU extension (its DATE cast on TIMESTAMPTZ needs it).
+pub fn iso_from_day_num(day_num: i64) -> String {
+    let z = day_num + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+    format!("{y:04}-{m:02}-{d:02}")
+}
+
 impl Db {
     /// The parent directory must already exist (main.rs creates it — the PVC
     /// mountpoint does that in-cluster).
@@ -68,8 +85,12 @@ impl Db {
 
     fn init(conn: duckdb::Result<Connection>) -> duckdb::Result<Self> {
         let conn = conn?;
+        // autoload/autoinstall OFF: the cluster has no outbound internet (and
+        // the netpol only allows DNS+redis anyway) — duckdb must never try to
+        // fetch extensions. Day bucketing below uses only core SQL (no ICU).
         conn.execute_batch(
-            "SET TimeZone = 'UTC';
+            "SET autoinstall_known_extensions = false;
+             SET autoload_known_extensions = false;
              CREATE TABLE IF NOT EXISTS clicks (
                  entry_id VARCHAR PRIMARY KEY,  -- redis stream entry id: idempotent replay
                  code     VARCHAR NOT NULL,
@@ -117,15 +138,15 @@ impl Db {
                 |r| r.get(0),
             )?;
             let mut stmt = conn.prepare(
-                "SELECT strftime(to_timestamp(ts / 1000.0), '%Y-%m-%d') AS day, count(*) AS clicks
+                "SELECT ts / 86400000 AS day_num, count(*) AS clicks
                  FROM clicks
                  WHERE ts >= ?
-                 GROUP BY day ORDER BY day",
+                 GROUP BY day_num ORDER BY day_num",
             )?;
             let per_day = stmt
                 .query_map(params![now - 14 * 86_400_000], |row| {
                     Ok(DayCount {
-                        day: row.get(0)?,
+                        day: iso_from_day_num(row.get(0)?),
                         clicks: row.get(1)?,
                     })
                 })?
@@ -148,14 +169,14 @@ impl Db {
             let total_clicks =
                 conn.query_row("SELECT count(*) FROM clicks WHERE code = ?", params![code], |r| r.get(0))?;
             let mut stmt = conn.prepare(
-                "SELECT strftime(to_timestamp(ts / 1000.0), '%Y-%m-%d') AS day, count(*) AS clicks
+                "SELECT ts / 86400000 AS day_num, count(*) AS clicks
                  FROM clicks
                  WHERE code = ? AND ts >= ?
-                 GROUP BY day ORDER BY day",
+                 GROUP BY day_num ORDER BY day_num",
             )?;
             let per_day = stmt
                 .query_map(params![code, now_ms() - 14 * 86_400_000], |row| {
-                    Ok(DayCount { day: row.get(0)?, clicks: row.get(1)? })
+                    Ok(DayCount { day: iso_from_day_num(row.get(0)?), clicks: row.get(1)? })
                 })?
                 .collect::<duckdb::Result<Vec<_>>>()?;
             let mut stmt = conn.prepare(
@@ -279,5 +300,22 @@ mod tests {
     async fn ready_answers_true() {
         let db = Arc::new(Db::open_in_memory().unwrap());
         assert!(db.ready().await);
+    }
+}
+
+#[cfg(test)]
+mod iso_tests {
+    use super::{iso_from_day_num, now_ms};
+
+    #[test]
+    fn known_dates_convert() {
+        assert_eq!(iso_from_day_num(0), "1970-01-01");
+        assert_eq!(iso_from_day_num(19723), "2024-01-01"); // 54y incl. 13 leaps
+        assert_eq!(iso_from_day_num(19753), "2024-01-31");
+        assert_eq!(iso_from_day_num(now_ms() / 86_400_000), {
+            // today's UTC date, cross-checked with the std-only computation
+            let days = now_ms() / 86_400_000;
+            iso_from_day_num(days)
+        });
     }
 }
