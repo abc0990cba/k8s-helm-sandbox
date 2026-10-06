@@ -48,6 +48,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       .catch((err) => {
         console.error("keycloak init failed", err);
+        // surface init failures without a console (k8s demo debugging aid)
+        document.title = "KC-FAIL: " + String(err?.message || err).slice(0, 100);
         setReady(true);
       });
 
