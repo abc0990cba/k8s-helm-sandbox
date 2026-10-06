@@ -2,7 +2,7 @@
 // `jobs` Redis Stream in a consumer group, does the work, writes the result
 // back into the jobs table and acknowledges the message. Run standalone:
 //   node src/worker.js
-import { createClient } from "@libsql/client";
+import { createClient as createLibsqlClient } from "@libsql/client";
 import { createClient } from "redis";
 import { config } from "./config.js";
 import { JOB_STREAM, JOB_TYPES } from "./controllers/jobs.controller.js";
@@ -10,7 +10,7 @@ import { handlers } from "./job-handlers.js";
 
 const CONSUMER_GROUP = "workers";
 
-const db = createClient({ url: config.libsqlUrl });
+const db = createLibsqlClient({ url: config.libsqlUrl });
 
 const redis = await createClient({
   url: `redis://${config.redisHost}:${config.redisPort}`,

@@ -7,7 +7,9 @@ COPY . .
 # bundled duckdb compiles the C++ engine into the binary — no runtime .so needed
 RUN cargo build --release
 
-FROM gcr.io/distroless/cc-debian12:nonroot
+# debian13: the rust:1 build stage is trixie-based — cc-debian12's older
+# glibc/libstdc++ rejects the binary (GLIBC_2.38 not found)
+FROM gcr.io/distroless/cc-debian13:nonroot
 
 COPY --from=build /app/target/release/rust-back /rust-back
 
