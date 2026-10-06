@@ -104,7 +104,7 @@ jobs:
                   sh -c "mkdir -p /work && tar -C /work -xf - && cd /work && rm -f package-lock.json && npm install --no-audit --no-fund && npx tsc -b && npx vitest run" ;;
               rust-back)
                 tar --exclude='._*' --exclude='target' -C rust-back -cf - . | docker run --rm -i rust:1 \
-                  sh -c "mkdir -p /work && tar -C /work -xf - && cd /work && cargo clippy --all-targets -- -D warnings && cargo test" ;;
+                  sh -c "mkdir -p /work && tar -C /work -xf - && cd /work && rustup component add clippy && cargo clippy --all-targets -- -D warnings && cargo test" ;;
             esac
             echo "::endgroup::"
           done
