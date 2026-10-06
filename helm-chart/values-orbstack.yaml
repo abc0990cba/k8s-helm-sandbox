@@ -16,7 +16,7 @@ host:
 # image/version here per git-SHA; the shared values.yaml stays environment-neutral
 front:
   image: 192.168.139.195:30500/grogu-front
-  version: 961981cfdc42f3025799d2f6f344df7721010c5a
+  version: ab36fe4685127a7e872546c5b176f951b4f3dd7a
 nodejsBack:
   image: 192.168.139.195:30500/grogu-api
   version: 6e17a7d51f3886c6487741102933fd52ee489d5e
