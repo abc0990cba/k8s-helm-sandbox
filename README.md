@@ -10,6 +10,8 @@ A full-stack application (React SPA → KrakenD API gateway → Node.js + Go bac
 
 then open [http://grogu.test/](http://grogu.test/) and log in with the pre-seeded user **demo / demo**.
 
+**New here?** Start with the visual tour — [docs/TOUR.md](./docs/TOUR.md) shows every surface (the app's api/notes/jobs views, Keycloak, Prometheus, Grafana, ArgoCD) with live screenshots and what to try on each.
+
 ### Architecture
 
 ![app](./diagram-as-code/fullstack_app.png)
