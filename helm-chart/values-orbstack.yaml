@@ -27,7 +27,7 @@ golangBack:
 # block itself (same awk block-bump as the other services)
 rustBack:
   image: 192.168.139.195:30500/rust-back
-  version: 824551197175cd5f570795c15dacdd8cd647921c
+  version: 8f8dc9bc0aa945feeb3d49a7c10f6d40dd010fab
 
 tls:
   enabled: false   # to rehearse the vps TLS branch: build values with sslip.io
