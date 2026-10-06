@@ -63,25 +63,26 @@
       ]
     },
     {
-      "endpoint": "/v1/nodejs/notes",
+      "endpoint": "/v1/nodejs/links",
       "method": "GET",
       "input_query_strings": [
         "limit",
-        "offset"
+        "offset",
+        "q"
       ],
       "backend": [
         {
           "host": [
             "http://{{ .Values.nodejsBack.name }}-clusterip:{{ .Values.nodejsBack.servicePort }}"
           ],
-          "url_pattern": "/notes",
+          "url_pattern": "/links",
           "encoding": "no-op"
         }
       ],
       "output_encoding": "no-op"
     },
     {
-      "endpoint": "/v1/nodejs/notes",
+      "endpoint": "/v1/nodejs/links",
       "method": "POST",
       "output_encoding": "no-op",
       "extra_config": {
@@ -98,7 +99,7 @@
           "host": [
             "http://{{ .Values.nodejsBack.name }}-clusterip:{{ .Values.nodejsBack.servicePort }}"
           ],
-          "url_pattern": "/notes"
+          "url_pattern": "/links"
         }
       ],
       "input_headers": [
@@ -107,47 +108,21 @@
       ]
     },
     {
-      "endpoint": "/v1/nodejs/notes/{id}",
+      "endpoint": "/v1/nodejs/links/{code}",
       "method": "GET",
       "backend": [
         {
           "host": [
             "http://{{ .Values.nodejsBack.name }}-clusterip:{{ .Values.nodejsBack.servicePort }}"
           ],
-          "url_pattern": "/notes/{id}",
+          "url_pattern": "/links/{code}",
           "encoding": "no-op"
         }
       ],
       "output_encoding": "no-op"
     },
     {
-      "endpoint": "/v1/nodejs/notes/{id}",
-      "method": "PATCH",
-      "output_encoding": "no-op",
-      "extra_config": {
-        "auth/validator": {
-          "alg": "{{ .Values.auth.alg }}",
-          "jwk_url": "{{ .Values.auth.jwkUrl }}",
-          "disable_jwk_security": true
-        }
-      },
-      "backend": [
-        {
-          "method": "PATCH",
-          "encoding": "no-op",
-          "host": [
-            "http://{{ .Values.nodejsBack.name }}-clusterip:{{ .Values.nodejsBack.servicePort }}"
-          ],
-          "url_pattern": "/notes/{id}"
-        }
-      ],
-      "input_headers": [
-        "Authorization",
-        "Content-Type"
-      ]
-    },
-    {
-      "endpoint": "/v1/nodejs/notes/{id}",
+      "endpoint": "/v1/nodejs/links/{code}",
       "method": "DELETE",
       "output_encoding": "no-op",
       "extra_config": {
@@ -164,7 +139,7 @@
           "host": [
             "http://{{ .Values.nodejsBack.name }}-clusterip:{{ .Values.nodejsBack.servicePort }}"
           ],
-          "url_pattern": "/notes/{id}"
+          "url_pattern": "/links/{code}"
         }
       ],
       "input_headers": [
@@ -439,6 +414,51 @@
           "url_pattern": "/primes/{num}"
         }
       ]
+    },
+    {
+      "endpoint": "/v1/rust/analytics/summary",
+      "method": "GET",
+      "backend": [
+        {
+          "host": [
+            "http://{{ .Values.rustBack.name }}-clusterip:{{ .Values.rustBack.servicePort }}"
+          ],
+          "url_pattern": "/analytics/summary",
+          "encoding": "no-op"
+        }
+      ],
+      "output_encoding": "no-op"
+    },
+    {
+      "endpoint": "/v1/rust/analytics/top",
+      "method": "GET",
+      "input_query_strings": [
+        "limit"
+      ],
+      "backend": [
+        {
+          "host": [
+            "http://{{ .Values.rustBack.name }}-clusterip:{{ .Values.rustBack.servicePort }}"
+          ],
+          "url_pattern": "/analytics/top",
+          "encoding": "no-op"
+        }
+      ],
+      "output_encoding": "no-op"
+    },
+    {
+      "endpoint": "/v1/rust/analytics/links/{code}",
+      "method": "GET",
+      "backend": [
+        {
+          "host": [
+            "http://{{ .Values.rustBack.name }}-clusterip:{{ .Values.rustBack.servicePort }}"
+          ],
+          "url_pattern": "/analytics/links/{code}",
+          "encoding": "no-op"
+        }
+      ],
+      "output_encoding": "no-op"
     }
   ]
 }

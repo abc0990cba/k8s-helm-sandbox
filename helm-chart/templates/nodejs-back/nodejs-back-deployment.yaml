@@ -31,7 +31,7 @@ spec:
           type: RuntimeDefault
       {{- end }}
       initContainers:
-        {{- include "wait-for-postgres-db" . | indent 8}}
+        {{- include "wait-for-libsql" . | indent 8}}
         {{- include "wait-for-redis-cache" . | indent 8}}
       containers:
       - name: {{ .Values.nodejsBack.name }}
@@ -63,16 +63,13 @@ spec:
         resources:
           requests: {{ .Values.nodejsBack.requests | toYaml | nindent 12 }}
           limits: {{ .Values.nodejsBack.limits | toYaml | nindent 12 }}
-        envFrom:
-            - secretRef:
-                name: {{ .Values.postgres.name }}-secret
         env:
         - name: PORT
           value: {{ .Values.nodejsBack.containerPort | quote }}
-        - name: POSTGRES_PORT
-          value: {{ .Values.postgres.servicePort | quote }}
-        - name: POSTGRES_HOST
-          value: "{{ .Values.postgres.name }}-clusterip"
+        # database-per-service: this backend owns libSQL (links + jobs), it has
+        # no postgres credentials at all
+        - name: LIBSQL_URL
+          value: "http://{{ .Values.libsql.name }}-clusterip:{{ .Values.libsql.servicePort }}"
         - name: REDIS_HOST
           value: "{{ .Values.redis.name }}-clusterip"
         - name: REDIS_PORT

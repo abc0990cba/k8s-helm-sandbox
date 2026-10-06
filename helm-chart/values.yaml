@@ -19,6 +19,10 @@ loadGenerator:
     # stress) and through the gateway at golang
     - "http://{{ .Values.nodejsBack.name }}-clusterip:{{ .Values.nodejsBack.servicePort }}/fibonacci"
     - "http://{{ .Values.gateway.name }}-clusterip:{{ .Values.gateway.servicePort }}/v1/golang/public/fibonacci/10"
+    # resolve the seeded short link through the gateway: this IS a click —
+    # it lights up the whole async pipeline (nodejs → redis clicks stream →
+    # rust/duckdb analytics) while the load runs
+    - "http://{{ .Values.gateway.name }}-clusterip:{{ .Values.gateway.servicePort }}/v1/nodejs/links/demo001"
 
 metrics:
   enabled: false
@@ -120,7 +124,7 @@ gateway:
 front:
   name: react-front
   image: mmko67/grogu-front
-  version: 0.3.6
+  version: 0.4.0
   components: front
   servicePort: 9071
   containerPort: 8080
@@ -136,7 +140,7 @@ front:
 nodejsBack:
   name: nodejs-back
   image: mmko67/grogu-api
-  version: 0.1.6
+  version: 0.2.0
   components: back
   stack: nodejs
   servicePort: 9070
@@ -150,6 +154,51 @@ nodejsBack:
   limits:
     memory: "500Mi"
     cpu: "200m"
+
+# the link-shortener + jobs backend persists to libSQL (server-mode SQLite) —
+# database-per-service: golang keeps postgres, nodejs talks only to libsql
+libsql:
+  name: libsql
+  # pinned libSQL server (sqld) — MIT, SQLite-wire-compatible, ~100MB RSS
+  image: ghcr.io/tursodatabase/libsql-server
+  version: "v0.24.33"
+  components: libsql
+  containerPort: 8080
+  servicePort: 8080
+  storage: 500Mi
+  requests:
+    memory: "64Mi"
+    cpu: "50m"
+  limits:
+    memory: "256Mi"
+    cpu: "500m"
+  migration:
+    name: libsql-migration
+    # bump when adding migrations-libsql/libsql-N.sql — the version-suffixed
+    # Job name is the rerun trigger (same mechanism as the postgres migration)
+    version: 1
+    # shared "migration" principal label with the postgres jobs — the netpol
+    # allow-lists admit this label to both databases
+    components: migration
+
+# the click-analytics backend: consumes the redis `clicks` stream into an
+# embedded DuckDB file on its own PVC — database-per-service, third store
+rustBack:
+  name: rust-back
+  image: mmko67/rust-back
+  version: 0.1.0
+  components: back
+  stack: rust
+  servicePort: 8820
+  containerPort: 8080
+  replicas: 1
+  requests:
+    memory: "64Mi"
+    cpu: "50m"
+  limits:
+    memory: "256Mi"
+    cpu: "500m"
+  storage: 200Mi
 
 golangBack:
   name: golang-back
@@ -231,7 +280,7 @@ postgres:
     name: postgres-migration
     # the latest migration file; bump when adding migrations/migration-N.sql —
     # the new Job name is what triggers the run (ArgoCD/helm both understand it)
-    version: 2
+    version: 3
     components: migration
   # nightly aggregation of notes per owner into daily_reports
   reportSchedule: "@daily"

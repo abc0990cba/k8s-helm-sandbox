@@ -23,6 +23,11 @@ nodejsBack:
 golangBack:
   image: 192.168.139.195:30500/golang-back
   version: d6c0378c7b4e8af9b7efbc1df4d871229c481593
+# placeholder until the first CI build pushes the rust image and bumps this
+# block itself (same awk block-bump as the other services)
+rustBack:
+  image: 192.168.139.195:30500/rust-back
+  version: 0.1.0
 
 tls:
   enabled: false   # to rehearse the vps TLS branch: build values with sslip.io

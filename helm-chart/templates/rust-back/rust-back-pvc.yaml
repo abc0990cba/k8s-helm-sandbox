@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.rustBack.name }}-pvc
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.rustBack.components }}
+spec:
+  # default storage class (local-path on k3s, standard on minikube) — like the
+  # redis volumeClaimTemplates, the data is node-pinned: single-node by design
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.rustBack.storage }}

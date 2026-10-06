@@ -1,18 +1,18 @@
 import express from "express";
 import bodyParser from "body-parser";
 import cors from "cors";
-import pg from "pg";
-import { createClient } from "redis";
+import { createClient } from "@libsql/client";
+import { createClient as createRedisClient } from "redis";
 import { metricsMiddleware } from "./metrics.js";
 import { errorMiddleware } from "./middlewares/error.middleware.js";
 import { AppController } from "./controllers/app.controller.js";
 import { NumbersController } from "./controllers/numbers.controller.js";
 import { FibonacciController } from "./controllers/fibonacci.controller.js";
-import { NotesController } from "./controllers/notes.controller.js";
+import { LinksController } from "./controllers/links.controller.js";
 import { JobsController } from "./controllers/jobs.controller.js";
 
 export class App {
-  pgClient;
+  db;
   redisClient;
   config;
 
@@ -21,16 +21,16 @@ export class App {
     this.app = express();
 
     (async () => {
-      await this.connectToDB();
+      this.connectToDB();
       await this.connectToRedis();
       this.initMiddlewares();
 
       const controllers = [
-        new AppController(),
+        new AppController(this.db, this.redisClient),
         new FibonacciController(this.redisClient),
-        new NumbersController(this.pgClient, this.redisClient),
-        new NotesController(this.pgClient, this.redisClient),
-        new JobsController(this.pgClient, this.redisClient)
+        new NumbersController(this.db, this.redisClient),
+        new LinksController(this.db, this.redisClient),
+        new JobsController(this.db, this.redisClient)
       ];
       this.initControllers(controllers);
       this.initErrorHandling();
@@ -60,20 +60,14 @@ export class App {
   }
 
   async connectToRedis() {
-    this.redisClient = await createClient({
+    this.redisClient = await createRedisClient({
       url: `redis://${this.config.redisHost}:${this.config.redisPort}`
     })
     .on("error", err => console.log("Redis Client Error", err))
     .connect();
   }
 
-  async connectToDB() {
-    this.pgClient = await new pg.Pool({
-      user: this.config.pgUser,
-      host: this.config.pgHost,
-      database: this.config.pgDatabase,
-      password: this.config.pgPassword,
-      port: this.config.pgPort
-    }).connect();
+  connectToDB() {
+    this.db = createClient({ url: this.config.libsqlUrl });
   }
 }

@@ -26,5 +26,7 @@ spec:
           echo "gateway:";   wget -qO- http://{{ .Values.gateway.name }}-clusterip:{{ .Values.gateway.servicePort }}/healthz >/dev/null && echo "  ok"
           echo "nodejs:";    wget -qO- http://{{ .Values.nodejsBack.name }}-clusterip:{{ .Values.nodejsBack.servicePort }}/healthz >/dev/null && echo "  ok"
           echo "golang:";    wget -qO- http://{{ .Values.golangBack.name }}-clusterip:{{ .Values.golangBack.servicePort }}/healthz >/dev/null && echo "  ok"
+          echo "rust:";      wget -qO- http://{{ .Values.rustBack.name }}-clusterip:{{ .Values.rustBack.servicePort }}/healthz >/dev/null && echo "  ok"
+          echo "libsql:";    wget -qO- http://{{ .Values.libsql.name }}-clusterip:{{ .Values.libsql.servicePort }}/version >/dev/null && echo "  ok"
           echo "keycloak:";  wget -qO- http://{{ .Values.auth.name }}-clusterip:{{ .Values.auth.servicePort }}/realms/demorealm >/dev/null && echo "  ok"
           echo "all in-cluster checks passed"

@@ -30,7 +30,7 @@ spec:
           type: RuntimeDefault
       {{- end }}
       initContainers:
-        {{- include "wait-for-postgres-db" . | indent 8}}
+        {{- include "wait-for-libsql" . | indent 8}}
         {{- include "wait-for-redis-cache" . | indent 8}}
       containers:
       - name: {{ .Values.nodejsWorker.name }}
@@ -51,14 +51,9 @@ spec:
         resources:
           requests: {{ .Values.nodejsWorker.requests | toYaml | nindent 12 }}
           limits: {{ .Values.nodejsWorker.limits | toYaml | nindent 12 }}
-        envFrom:
-            - secretRef:
-                name: {{ .Values.postgres.name }}-secret
         env:
-        - name: POSTGRES_PORT
-          value: {{ .Values.postgres.servicePort | quote }}
-        - name: POSTGRES_HOST
-          value: "{{ .Values.postgres.name }}-clusterip"
+        - name: LIBSQL_URL
+          value: "http://{{ .Values.libsql.name }}-clusterip:{{ .Values.libsql.servicePort }}"
         - name: REDIS_HOST
           value: "{{ .Values.redis.name }}-clusterip"
         - name: REDIS_PORT

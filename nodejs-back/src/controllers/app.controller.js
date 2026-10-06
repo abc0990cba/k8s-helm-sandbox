@@ -4,8 +4,12 @@ import { metricsRoute } from "../metrics.js";
 export class AppController {
   path = "/";
   router = Router();
-  
-  constructor() {
+  db;
+  redisClient;
+
+  constructor(db, redisClient) {
+    this.db = db;
+    this.redisClient = redisClient;
     this.initializeRoutes();
   }
 
@@ -15,13 +19,21 @@ export class AppController {
     this.router.get(`${this.path}metrics`, metricsRoute);
   }
 
-  ready = async (req, res, next) => {
-    console.log("ready");
-    res.send("ready");
+  // readiness means "dependencies reachable": libSQL and Redis. The chart's
+  // probes (and the gateway readiness, which dials us) rely on this.
+  ready = async (req, res) => {
+    try {
+      await Promise.all([
+        this.db.execute("SELECT 1"),
+        this.redisClient.ping(),
+      ]);
+      res.send("ready");
+    } catch (error) {
+      res.status(503).send({ message: "dependencies not ready", error: String(error.message || error) });
+    }
   }
 
-  healthy = async (req, res, next) => {
-    console.log("healthy");
+  healthy = (req, res) => {
     res.send("healthy");
   }
 }

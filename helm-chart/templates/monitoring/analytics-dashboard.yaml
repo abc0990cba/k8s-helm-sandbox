@@ -1,0 +1,77 @@
+{{- if .Values.metrics.enabled }}
+# Click-analytics pipeline dashboard (auto-loaded by the grafana_dashboard
+# sidecar label, same as demo-overview). Panels track the async flow
+# nodejs → redis `clicks` stream → rust/duckdb:
+# ingest rate, error rate and the rust pods doing the work.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-analytics-dashboard
+  namespace: {{ .Values.namespace }}
+  labels:
+    grafana_dashboard: "1"
+data:
+  analytics.json: |
+    {
+      "title": "Click analytics pipeline ({{ .Release.Name }})",
+      "uid": "analytics-pipeline",
+      "timezone": "browser",
+      "refresh": "10s",
+      "time": { "from": "now-30m", "to": "now" },
+      "panels": [
+        {
+          "id": 1,
+          "title": "Clicks ingested into DuckDB (total)",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 8, "x": 0, "y": 0 },
+          "targets": [{ "expr": "sum(analytics_clicks_ingested_total{namespace=\"{{ .Values.namespace }}\"})", "legendFormat": "clicks" }]
+        },
+        {
+          "id": 2,
+          "title": "Stream errors (total)",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 8, "x": 8, "y": 0 },
+          "targets": [{ "expr": "sum(analytics_stream_errors_total{namespace=\"{{ .Values.namespace }}\"}) or vector(0)", "legendFormat": "errors" }]
+        },
+        {
+          "id": 3,
+          "title": "Malformed entries skipped (total)",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 8, "x": 16, "y": 0 },
+          "targets": [{ "expr": "sum(analytics_entries_skipped_total{namespace=\"{{ .Values.namespace }}\"}) or vector(0)", "legendFormat": "skipped" }]
+        },
+        {
+          "id": 4,
+          "title": "Click ingest rate (/min by pod)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+          "targets": [{ "expr": "sum(rate(analytics_clicks_ingested_total{namespace=\"{{ .Values.namespace }}\"}[1m])) by (pod) * 60", "legendFormat": "{{"{{pod}}"}}" }]
+        },
+        {
+          "id": 5,
+          "title": "rust-back CPU by pod (millicores)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+          "targets": [{ "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"{{ .Values.namespace }}\", pod=~\"{{ .Values.rustBack.name }}-.*\", container!=\"\"}[5m])) by (pod) * 1000", "legendFormat": "{{"{{pod}}"}}" }]
+        },
+        {
+          "id": 6,
+          "title": "rust-back memory working set (MiB)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+          "targets": [{ "expr": "sum(container_memory_working_set_bytes{namespace=\"{{ .Values.namespace }}\", pod=~\"{{ .Values.rustBack.name }}-.*\", container!=\"\"}) by (pod) / 1048576", "legendFormat": "{{"{{pod}}"}}" }]
+        },
+        {
+          "id": 7,
+          "title": "rust-back replicas (HPA current / target)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+          "targets": [
+            { "expr": "kube_horizontalpodautoscaler_status_current_replicas{namespace=\"{{ .Values.namespace }}\", horizontalpodautoscaler=\"{{ .Values.rustBack.name }}-hpa\"}", "legendFormat": "current" },
+            { "expr": "kube_horizontalpodautoscaler_spec_max_replicas{namespace=\"{{ .Values.namespace }}\", horizontalpodautoscaler=\"{{ .Values.rustBack.name }}-hpa\"}", "legendFormat": "max" }
+          ]
+        }
+      ],
+      "schemaVersion": 39
+    }
+{{- end }}

@@ -2,20 +2,15 @@
 // `jobs` Redis Stream in a consumer group, does the work, writes the result
 // back into the jobs table and acknowledges the message. Run standalone:
 //   node src/worker.js
-import pg from "pg";
+import { createClient } from "@libsql/client";
 import { createClient } from "redis";
 import { config } from "./config.js";
 import { JOB_STREAM, JOB_TYPES } from "./controllers/jobs.controller.js";
+import { handlers } from "./job-handlers.js";
 
 const CONSUMER_GROUP = "workers";
 
-const pgPool = new pg.Pool({
-  user: config.pgUser,
-  host: config.pgHost,
-  database: config.pgDatabase,
-  password: config.pgPassword,
-  port: config.pgPort,
-});
+const db = createClient({ url: config.libsqlUrl });
 
 const redis = await createClient({
   url: `redis://${config.redisHost}:${config.redisPort}`,
@@ -33,66 +28,48 @@ await redis.sendCommand(["XGROUP", "CREATE", JOB_STREAM, CONSUMER_GROUP, "$", "M
 
 const consumer = `worker-${process.env.HOSTNAME || "local"}`;
 
-async function handleWordcount({ noteId }) {
-  const note = await pgPool.query("SELECT id, title, body FROM notes WHERE id = $1", [noteId]);
-  if (note.rowCount === 0) {
-    throw new Error(`note ${noteId} not found`);
-  }
-  const words = `${note.rows[0].title} ${note.rows[0].body}`.trim().split(/\s+/).filter(Boolean).length;
-  return { noteId: note.rows[0].id, words };
-}
-
-function handleFibonacci({ n }) {
-  let a = 0n;
-  let b = 1n;
-  for (let i = 2; i <= n; i++) {
-    [a, b] = [b, a + b];
-  }
-  const result = n <= 1 ? BigInt(n) : b;
-  return { n, result: result.toString() };
-}
-
-const handlers = {
-  wordcount: handleWordcount,
-  fibonacci: handleFibonacci,
-};
-
 async function processEntry(entry) {
   const id = entry.message.id;
   const type = entry.message.type;
 
   if (!JOB_TYPES.includes(type)) {
-    await pgPool.query("UPDATE jobs SET status = 'failed', error = $2, updated_at = now() WHERE id = $1", [
-      id,
-      `unknown job type: ${type}`,
-    ]);
+    await db.execute({
+      sql: "UPDATE jobs SET status = 'failed', error = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?",
+      args: [`unknown job type: ${type}`, id],
+    });
     return;
   }
 
-  const job = await pgPool.query("SELECT payload FROM jobs WHERE id = $1", [id]);
-  if (job.rowCount === 0) {
+  const job = await db.execute({
+    sql: "SELECT payload FROM jobs WHERE id = ?",
+    args: [id],
+  });
+  if (job.rows.length === 0) {
     console.error(`stream entry references missing job row: ${id}`);
     return;
   }
 
-  await pgPool.query("UPDATE jobs SET status = 'processing', updated_at = now() WHERE id = $1", [id]);
+  await db.execute({
+    sql: "UPDATE jobs SET status = 'processing', updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?",
+    args: [id],
+  });
 
-  // node-pg already parses jsonb into an object; tolerate strings too
+  // payload is stored as TEXT — tolerate objects too
   const rawPayload = job.rows[0].payload;
   const payload = typeof rawPayload === "string" ? JSON.parse(rawPayload) : rawPayload;
 
   try {
     const result = await handlers[type](payload);
-    await pgPool.query("UPDATE jobs SET status = 'done', result = $2, updated_at = now() WHERE id = $1", [
-      id,
-      JSON.stringify(result),
-    ]);
+    await db.execute({
+      sql: "UPDATE jobs SET status = 'done', result = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?",
+      args: [JSON.stringify(result), id],
+    });
     console.log(`job ${id} (${type}) done:`, result);
   } catch (error) {
-    await pgPool.query("UPDATE jobs SET status = 'failed', error = $2, updated_at = now() WHERE id = $1", [
-      id,
-      String(error.message || error),
-    ]);
+    await db.execute({
+      sql: "UPDATE jobs SET status = 'failed', error = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?",
+      args: [String(error.message || error), id],
+    });
     console.error(`job ${id} (${type}) failed:`, error);
   }
 }
@@ -126,4 +103,4 @@ while (running) {
 
 console.log("worker shutting down");
 await redis.quit();
-await pgPool.end();
+db.close();

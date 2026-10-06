@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.rustBack.name }}-deployment
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.rustBack.components }}
+    stack: {{ .Values.rustBack.stack }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.rustBack.components }}
+      stack: {{ .Values.rustBack.stack }}
+  replicas: {{ .Values.rustBack.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.rustBack.components }}
+        stack: {{ .Values.rustBack.stack }}
+    spec:
+      automountServiceAccountToken: false
+      # fsGroup is NOT gated on hardening: the DuckDB file lives on the PVC and
+      # the distroless nonroot (65532) process must own it. The volume is
+      # mounted without subPath, so plain fsGroup ownership works (postgres
+      # needed the init-chown dance only because subPath defeats fsGroup).
+      securityContext:
+        fsGroup: 65532
+        {{- if .Values.hardening.securityContext }}
+        seccompProfile:
+          type: RuntimeDefault
+        {{- end }}
+      initContainers:
+        {{- include "wait-for-redis-cache" . | indent 8}}
+      containers:
+      - name: {{ .Values.rustBack.name }}
+        image: "{{ .Values.rustBack.image }}:{{ .Values.rustBack.version }}"
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: {{ .Values.rustBack.containerPort }}
+          # /metrics is served on this same port (prometheus crate route)
+        {{- if .Values.hardening.securityContext }}
+        # 65532 = the nonroot uid of the distroless cc runtime stage
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65532
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+        {{- end }}
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: {{ .Values.rustBack.containerPort }}
+          initialDelaySeconds: 3
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: {{ .Values.rustBack.containerPort }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests: {{ .Values.rustBack.requests | toYaml | nindent 12 }}
+          limits: {{ .Values.rustBack.limits | toYaml | nindent 12 }}
+        volumeMounts:
+        - name: analytics-data
+          mountPath: /data
+        env:
+        - name: PORT
+          value: {{ .Values.rustBack.containerPort | quote }}
+        - name: DUCKDB_PATH
+          value: /data/clicks.duckdb
+        - name: REDIS_URL
+          value: "redis://{{ .Values.redis.name }}-clusterip:{{ .Values.redis.servicePort }}"
+        - name: CLICK_STREAM
+          value: clicks
+        - name: CONSUMER_GROUP
+          value: analytics
+      volumes:
+      - name: analytics-data
+        persistentVolumeClaim:
+          claimName: {{ .Values.rustBack.name }}-pvc

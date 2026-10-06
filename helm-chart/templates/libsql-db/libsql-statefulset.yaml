@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Values.libsql.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.libsql.components }}
+spec:
+  serviceName: {{ .Values.libsql.name }}-clusterip
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.libsql.components }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.libsql.components }}
+    spec:
+      automountServiceAccountToken: false
+      {{- if .Values.hardening.securityContext }}
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      {{- end }}
+      containers:
+        - name: {{ .Values.libsql.name }}
+          image: "{{ .Values.libsql.image }}:{{ .Values.libsql.version }}"
+          imagePullPolicy: IfNotPresent
+          # standalone (not `primary`): no gRPC replication listener, HTTP only
+          env:
+            - name: SQLD_NODE
+              value: standalone
+            - name: SQLD_DB_PATH
+              value: /var/lib/sqld
+          ports:
+            - containerPort: {{ .Values.libsql.containerPort }}
+          # no hardening securityContext here on purpose: the image's wrapper
+          # chowns the data dir and gosu-drops to the `sqld` user, which needs
+          # root + CAP_CHOWN at start (same trade-off as the redis image)
+          volumeMounts:
+            - name: libsql-data
+              mountPath: /var/lib/sqld
+          resources:
+            requests: {{ .Values.libsql.requests | toYaml | nindent 14 }}
+            limits: {{ .Values.libsql.limits | toYaml | nindent 14 }}
+          readinessProbe:
+            httpGet:
+              path: /version
+              port: {{ .Values.libsql.containerPort }}
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /version
+              port: {{ .Values.libsql.containerPort }}
+            initialDelaySeconds: 10
+            periodSeconds: 20
+  volumeClaimTemplates:
+    - metadata:
+        name: libsql-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: {{ .Values.libsql.storage }}

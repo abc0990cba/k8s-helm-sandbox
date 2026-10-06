@@ -25,7 +25,14 @@ spec:
         command: ["sh", "-c"]
         args:
           - |
-            psql -v ON_ERROR_STOP=1 -h $(POSTGRES_HOST) -U $(POSTGRES_USER) -d $(POSTGRES_DB) -f /mnt/sql/migration-{{ .Values.postgres.migration.version }}.sql
+            # run EVERY migration file in order (numerical sort): a fresh
+            # cluster used to execute only the latest file, which broke
+            # first deploys whenever migration-N referenced objects from
+            # earlier files — idempotent SQL makes the full replay safe
+            for f in $(ls /mnt/sql/migration-*.sql | sort -V); do
+              echo "applying $f"
+              psql -v ON_ERROR_STOP=1 -h $(POSTGRES_HOST) -U $(POSTGRES_USER) -d $(POSTGRES_DB) -f "$f" || exit 1
+            done
         env:
         - name: PGPASSWORD
           value: "$(POSTGRES_PASSWORD)"
@@ -44,6 +51,3 @@ spec:
       - name: {{ .Values.postgres.migration.name }}-volume
         configMap:
           name: {{ .Values.postgres.migration.name }}-configmap
-          items:
-          - key: migration-{{ .Values.postgres.migration.version }}.sql
-            path: migration-{{ .Values.postgres.migration.version }}.sql

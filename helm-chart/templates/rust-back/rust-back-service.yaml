@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.rustBack.name }}-clusterip
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.rustBack.components }}
+spec:
+  type: ClusterIP
+  ports:
+  # one port serves both the API and /metrics — same shape as the other backends
+  - name: http
+    port: {{ .Values.rustBack.servicePort }}
+    targetPort: {{ .Values.rustBack.containerPort }}
+    protocol: TCP
+  selector:
+    app: {{ .Values.rustBack.components }}
+    stack: {{ .Values.rustBack.stack }}

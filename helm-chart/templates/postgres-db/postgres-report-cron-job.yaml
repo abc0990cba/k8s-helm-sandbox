@@ -23,16 +23,30 @@ spec:
           automountServiceAccountToken: false
           containers:
             - name: {{ .Values.postgres.name }}-report
-              image: "{{ .Values.nodejsBack.image }}:{{ .Values.nodejsBack.version }}"
+              image: "{{ .Values.postgres.image }}:{{ .Values.postgres.version }}"
               imagePullPolicy: IfNotPresent
-              # the batch pattern: same app image, a batch entrypoint, no server
-              # (args → the image's node ENTRYPOINT, which knows the binary path)
-              args: ["scripts/daily-report.js"]
-              envFrom:
-                - secretRef:
-                    name: {{ .Values.postgres.name }}-secret
+              # pure-SQL batch: aggregate notes per owner per day into
+              # daily_reports (idempotent upsert). Used to run the nodejs
+              # image with scripts/daily-report.js — that broke in the
+              # database-per-service split (notes now belong to the
+              # golang/postgres domain, so the report stays here as SQL)
+              command: ["sh", "-c"]
+              args:
+                - |
+                  psql -v ON_ERROR_STOP=1 -h $(POSTGRES_HOST) -U $(POSTGRES_USER) -d $(POSTGRES_DB) <<'SQL'
+                  INSERT INTO daily_reports(day, owner, notes_count)
+                  SELECT date_trunc('day', created_at)::date AS day, owner, count(*)::int AS notes_count
+                  FROM notes
+                  GROUP BY day, owner
+                  ON CONFLICT (day, owner) DO UPDATE SET notes_count = EXCLUDED.notes_count;
+                  SQL
               env:
+                - name: PGPASSWORD
+                  value: "$(POSTGRES_PASSWORD)"
                 - name: POSTGRES_PORT
                   value: {{ .Values.postgres.servicePort | quote }}
                 - name: POSTGRES_HOST
                   value: "{{ .Values.postgres.name }}-clusterip"
+              envFrom:
+                - secretRef:
+                    name: {{ .Values.postgres.name }}-secret

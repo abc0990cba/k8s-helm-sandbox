@@ -44,3 +44,20 @@
     done
     echo "database is ready!"
 {{- end }}
+
+{{- define "wait-for-libsql" }}
+- name: wait-for-{{ .Values.libsql.name }}
+  image: bash:4.4
+  command:
+  - bash
+  - -c
+  - |
+    # /version answers 200 once sqld's HTTP interface is up — good enough as a
+    # TCP+service check; SQL readiness is instant after that
+    until nc -z -w 1 {{ .Values.libsql.name }}-clusterip {{ .Values.libsql.servicePort }} 2>/dev/null;
+    do
+      echo "Waiting for libSQL..."
+      sleep 2
+    done
+    echo "libsql is ready!"
+{{- end }}

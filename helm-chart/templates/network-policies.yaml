@@ -22,18 +22,13 @@ spec:
   policyTypes: [Ingress, Egress]
   ingress:
     - from:
-        - podSelector:
-            matchLabels:
-              app: {{ .Values.nodejsBack.components }}
-              stack: {{ .Values.nodejsBack.stack }}
+        # nodejs moved to libSQL in the database-per-service split — only
+        # golang, keycloak and the migration/backup/report jobs may touch
+        # postgres now
         - podSelector:
             matchLabels:
               app: {{ .Values.golangBack.components }}
               stack: {{ .Values.golangBack.stack }}
-        - podSelector:
-            matchLabels:
-              app: {{ .Values.nodejsWorker.components }}
-              stack: {{ .Values.nodejsWorker.stack }}
         - podSelector:
             matchLabels:
               app: {{ .Values.auth.components }}
@@ -78,11 +73,15 @@ spec:
             matchLabels:
               app: {{ .Values.golangBack.components }}
               stack: {{ .Values.golangBack.stack }}
-        # the queue consumer
+        # the queue consumers: nodejs worker (jobs) and rust-back (clicks)
         - podSelector:
             matchLabels:
               app: {{ .Values.nodejsWorker.components }}
               stack: {{ .Values.nodejsWorker.stack }}
+        - podSelector:
+            matchLabels:
+              app: {{ .Values.rustBack.components }}
+              stack: {{ .Values.rustBack.stack }}
       ports:
         - port: {{ .Values.redis.containerPort }}
           protocol: TCP
@@ -130,11 +129,12 @@ spec:
         - port: 53
           protocol: TCP
     - to:
+        # nodejs's own database is libSQL now — postgres is no longer reachable
         - podSelector:
             matchLabels:
-              app: {{ .Values.postgres.components }}
+              app: {{ .Values.libsql.components }}
       ports:
-        - port: {{ .Values.postgres.containerPort }}
+        - port: {{ .Values.libsql.containerPort }}
           protocol: TCP
     - to:
         - podSelector:
@@ -265,6 +265,108 @@ spec:
               app: {{ .Values.auth.components }}
       ports:
         - port: {{ .Values.auth.containerPort }}
+          protocol: TCP
+    - to:
+        - podSelector:
+            matchLabels:
+              app: {{ .Values.rustBack.components }}
+              stack: {{ .Values.rustBack.stack }}
+      ports:
+        - port: {{ .Values.rustBack.containerPort }}
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: libsql-policy
+  namespace: {{ .Values.namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app: {{ .Values.libsql.components }}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        # the link/jobs backend (database-per-service: libSQL is nodejs's store)
+        - podSelector:
+            matchLabels:
+              app: {{ .Values.nodejsBack.components }}
+              stack: {{ .Values.nodejsBack.stack }}
+        # the queue consumer shares the nodejs image + its database
+        - podSelector:
+            matchLabels:
+              app: {{ .Values.nodejsWorker.components }}
+              stack: {{ .Values.nodejsWorker.stack }}
+        # the migration Job (schema + seeds from the ConfigMap)
+        - podSelector:
+            matchLabels:
+              app: {{ .Values.libsql.migration.components }}
+      ports:
+        - port: {{ .Values.libsql.containerPort }}
+          protocol: TCP
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rust-back-policy
+  namespace: {{ .Values.namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app: {{ .Values.rustBack.components }}
+      stack: {{ .Values.rustBack.stack }}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: {{ .Values.gateway.components }}
+        {{- if .Values.loadGenerator.enable }}
+        - podSelector:
+            matchLabels:
+              app: {{ .Values.loadGenerator.components }}
+        {{- end }}
+        {{- if .Values.metrics.enabled }}
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+        {{- end }}
+      ports:
+        - port: {{ .Values.rustBack.containerPort }}
+          protocol: TCP
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    - to:
+        # the clicks stream lives in redis — DuckDB is in-process, no DB egress
+        - podSelector:
+            matchLabels:
+              app: {{ .Values.redis.components }}
+      ports:
+        - port: {{ .Values.redis.containerPort }}
           protocol: TCP
 ---
 apiVersion: networking.k8s.io/v1

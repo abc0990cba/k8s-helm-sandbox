@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  # the ConfigMap (not the app image) carries the SQL — deployments render from
+  # chart state, so `git push` moves migrations even between image bumps
+  name: {{ .Values.libsql.migration.name }}-configmap
+  namespace: {{ .Values.namespace }}
+data:
+  {{- (.Files.Glob "migrations-libsql/*").AsConfig | nindent 2 }}

@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  # deliberately NOT a helm.sh/hook Job (same reasoning as the postgres one:
+  # ArgoCD ignores hooks). The version-suffixed name is the rerun trigger —
+  # bump libsql.migration.version when adding migrations-libsql/libsql-N.sql.
+  # The SQL arrives via ConfigMap; the nodejs image only provides the client
+  # (@libsql/client + scripts/migrate.js).
+  name: {{ .Values.libsql.migration.name }}-{{ .Values.libsql.migration.version }}-job
+  namespace: {{ .Values.namespace }}
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.libsql.migration.components }}
+    spec:
+      automountServiceAccountToken: false
+      initContainers:
+        {{- include "wait-for-libsql" . | indent 8}}
+      containers:
+      - name: {{ .Values.libsql.migration.name }}
+        image: "{{ .Values.nodejsBack.image }}:{{ .Values.nodejsBack.version }}"
+        imagePullPolicy: IfNotPresent
+        # args (not command) — the distroless nodejs ENTRYPOINT resolves node
+        args: ["scripts/migrate.js", "/mnt/sql"]
+        env:
+        - name: LIBSQL_URL
+          value: "http://{{ .Values.libsql.name }}-clusterip:{{ .Values.libsql.servicePort }}"
+        volumeMounts:
+        - name: {{ .Values.libsql.migration.name }}-volume
+          mountPath: /mnt/sql
+      restartPolicy: Never
+      volumes:
+      - name: {{ .Values.libsql.migration.name }}-volume
+        configMap:
+          name: {{ .Values.libsql.migration.name }}-configmap

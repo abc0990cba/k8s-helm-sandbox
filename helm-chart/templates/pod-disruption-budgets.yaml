@@ -41,6 +41,18 @@ spec:
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
+  name: {{ .Values.rustBack.name }}-pdb
+  namespace: {{ .Values.namespace }}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.rustBack.components }}
+      stack: {{ .Values.rustBack.stack }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
   name: {{ .Values.gateway.name }}-pdb
   namespace: {{ .Values.namespace }}
 spec:

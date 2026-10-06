@@ -1,10 +1,6 @@
 export const config = {
   port: process.env.PORT || 8030,
-  pgUser: process.env.POSTGRES_USER || 'ps_user',
-  pgHost: process.env.POSTGRES_HOST || 'localhost',
-  pgDatabase: process.env.POSTGRES_DB || 'ps_db',
-  pgPassword: process.env.POSTGRES_PASSWORD || 'SecurePassword',
-  pgPort: process.env.POSTGRES_PORT || '5432',
+  libsqlUrl: process.env.LIBSQL_URL || 'http://localhost:8080',
   redisHost: process.env.REDIS_HOST || 'localhost',
   redisPort: process.env.REDIS_PORT || '6379',
 };
