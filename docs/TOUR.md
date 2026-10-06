@@ -1,96 +1,104 @@
-# Visual tour — what you get when it's running
+# Visual tour v2 — the polyglot stack (React 19 + Mantine, three backends)
 
-Screenshots taken live from the OrbStack deployment (October 2026). Follow
-along: bring the stack up with `./start orbstack`, run
-`./scripts/dev-hosts.sh orbstack --install`, and open the same URLs.
+Screenshots taken live from the OrbStack deployment. Bring the stack up with
+`./start orbstack --skip-bootstrap`, run `scripts/dev-hosts.sh orbstack
+--install` (one-time, sudo), and open the same URLs.
 
-## 1. The application — http://grogu.test/
+> **Version note:** the v1 tour (React 18 + shadcn UI, two backends sharing
+> one Postgres) is preserved in [archive/v1/](archive/v1/TOUR-v1.md). This is
+> v2: React 19 + Mantine front, database-per-service backends
+> (golang→PostgreSQL, nodejs→libSQL, rust→DuckDB) and the async
+> click-analytics pipeline.
 
-Login with **demo / demo** (the account is seeded into Keycloak on first
-boot). The SPA has three views behind the `api / notes / jobs` buttons.
+Login with **demo / demo** (the account is seeded into Keycloak on first boot).
 
-The landing view is an API playground: pick a backend (nodejs / golang), pick
-public / private, hit **fetch data**. Public endpoints need no auth; private
-ones send your JWT, which KrakenD validates before proxying:
+The Mantine AppShell has five views in the navbar; every card carries a
+**service × database badge** — the thread to follow in the tour.
 
-![API view](screenshots/01-app-api-view.png)
+## 1. API playground — http://grogu.test/ (route `/`)
 
-A **private** fetch with a valid token returns the numbers collection from
-Postgres — status 200 with the `Authorization: Bearer` header attached
-automatically from your login:
+Pick a backend (nodejs / golang) and public / private, hit **Send request**.
+Public endpoints need no auth; private ones send your JWT, which KrakenD
+validates before proxying. A private request **logged out** answers 401 — the
+gateway's verdict, not a backend's. The card at the bottom polls the rust
+analytics summary live (DuckDB aggregations through the gateway).
 
-![Private fetch](screenshots/02-app-private-fetch.png)
+![Playground](screenshots/01-playground.png)
 
-### Notes — one API contract, two backends
+## 2. Links + analytics — route `/links`
 
-The `notes` view is full CRUD against Postgres with a Redis read-through
-cache (TTL 60s). Create a note, edit it inline, delete it, page through.
-The radio switches between the **nodejs and golang backends** — two
-independent implementations of the same REST contract writing to the same
-tables. Writes are JWT-gated at the gateway; the owner column comes from your
-token (`preferred_username`):
+The flagship view:
 
-![Notes CRUD](screenshots/03-app-notes-crud.png)
+- **Create a short link** (form on the left) → the code is generated in
+  nodejs-back and stored in **libSQL**.
+- The right card lists the **top links by clicks** straight from **DuckDB**.
+- Press **click** on a row: a new tab opens the target and the click event is
+  published on the redis `clicks` stream. Within ~5 seconds the three summary
+  cards and the per-day chart tick up — three services, three databases, zero
+  synchronous coupling.
+- **stats** opens the per-link panel: clicks per day (line) and top referrers
+  (bars), both DuckDB `GROUP BY` aggregations.
+- The search box is FTS5 full-text search over url + title — a libSQL party
+  trick.
 
-### Jobs — the async queue pattern
+![Links and analytics](screenshots/02-links-analytics.png)
 
-The `jobs` view demonstrates queue-based work: the API inserts a row and
-publishes to a Redis Stream, a separate worker Deployment consumes the stream
-in a consumer group and writes the result back. Submit a **wordcount** job on
-note 1 and watch it go `queued → processing → done` (the panel polls every
-1.5s) — this screenshot caught a finished job (`words: 25`):
+## 3. Jobs — route `/jobs`
 
-![Async jobs](screenshots/04-app-jobs-async.png)
+Enqueue fibonacci(10): the API answers 202 immediately (row `queued` in
+libSQL, event on the redis `jobs` stream), the separate **worker** Deployment
+consumes it and flips the status to done with the result — TanStack Query
+polls the progress live. API and worker scale independently (KEDA can scale
+the worker on stream backlog — roadmap).
 
-## 2. Keycloak — http://auth.test/
+![Jobs](screenshots/03-jobs.png)
 
-Every login goes through this page (realm `demorealm`, client `reactclient`,
-PKCE):
+## 4. Notes — route `/notes`
 
-![Keycloak login](screenshots/05-keycloak-login.png)
+The relational domain, owned by golang-back: create, edit, delete notes in
+**PostgreSQL**, with pagination and owner attribution from the JWT claims.
 
-The admin console (`http://auth.test/admin/`, **admin / admin**) manages the
-realm: users, sessions, clients. The `reactclient` the SPA uses is defined in
-`helm-chart/config/realm-export.json` and imported on first boot — change
-hosts there, not by hand:
+![Notes](screenshots/04-notes.png)
 
-![Keycloak admin](screenshots/06-keycloak-admin.png)
+## 5. Token — route `/token`
 
-## 3. Prometheus — http://prom.test/ (or the port-forward)
+The decoded JWT payload plus a copy button. Decoding ≠ verification — the
+RS256 signature is checked by the gateway against Keycloak's JWKS on every
+private route and write.
 
-All four apps publish `/metrics` and are scraped through ServiceMonitors.
-The Targets page is the health check for the whole observability wiring —
-every target should be `UP`:
+![Token](screenshots/05-token.png)
 
-![Prometheus targets](screenshots/07-prometheus-targets.png)
+## 6. Keycloak — http://auth.test/
 
-## 4. Grafana — http://grafana.test/ (or the port-forward)
+Realm `demorealm`, client `reactclient`, seeded user demo/demo. The SPA uses
+keycloak-js with PKCE and refreshes the token 60s before expiry.
 
-Login **admin / prom-operator**. The "Demo stack overview" dashboard is
-provisioned automatically from a ConfigMap in the chart — pod CPU/memory,
-HPA replicas, restarts, available-vs-desired. The spike at 19:30 below is the
-monitoring stack itself being installed:
+![Keycloak](screenshots/06-keycloak.png)
 
-![Grafana dashboard](screenshots/08-grafana-dashboard.png)
+## 7. Prometheus — http://prom.test/
 
-## 5. ArgoCD — http://argocd.test/ (or the port-forward)
+Five scrape targets: nodejs, golang, rust, krakend (:9090), keycloak (:9000).
+Try `analytics_clicks_ingested_total` — the counter the rust consumer bumps
+on every committed click.
 
-The GitOps control plane. Password: `cat .local/argocd-orbstack-admin-pw`.
-Two Applications: `root` (the app-of-apps pointing at
-`gitops/apps/orbstack`) and `ap` (the chart itself). Green = synced from git
-and healthy — this is the screen that tells you a `git push` landed:
+![Prometheus](screenshots/07-prometheus.png)
 
-![ArgoCD applications](screenshots/09-argocd-apps.png)
+## 8. Grafana — http://grafana.test/ (admin / prom-operator)
 
-## Without the hosts file
+Two dashboards: **Demo stack overview** (pods, CPU, HPA replicas, restarts)
+and **Click analytics pipeline** (ingest rate, stream errors, rust pods).
 
-The smoke tests never need hosts entries (`curl --resolve`), but a browser
-does. If you don't want to edit `/etc/hosts`, forward the UIs to localhost
-instead (the app and Keycloak still need the names — they're baked into the
-build and the realm redirect URIs):
+![Grafana](screenshots/08-grafana.png)
 
-```bash
-kubectl -n default port-forward svc/ap-grafana 3001:80
-kubectl -n default port-forward svc/ap-kube-prometheus-stack-prometheus 9091:9090
-kubectl -n argocd port-forward svc/argocd-server 8091:80
-```
+## 9. ArgoCD — in-cluster
+
+The `ap` application syncing the chart from git — the same chart the local
+`./start` uses. This is the GitOps proof: what runs equals what is committed.
+
+![ArgoCD](screenshots/09-argocd.png)
+
+## Sequence diagrams
+
+The request/response flows behind these screens are drawn in
+[FLOWS.md](FLOWS.md) — auth, notes, links + the click→DuckDB pipeline, async
+jobs, and the GitOps deploy flow.
