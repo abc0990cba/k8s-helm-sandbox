@@ -5,6 +5,7 @@ metadata:
   namespace: {{ .Values.namespace }}
   labels:
     app: {{ .Values.rustBack.components }}
+    stack: {{ .Values.rustBack.stack }}
 spec:
   type: ClusterIP
   ports:

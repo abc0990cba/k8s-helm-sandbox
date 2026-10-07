@@ -5,6 +5,7 @@ metadata:
   namespace: {{ .Values.namespace }}
   labels:
     app: {{ .Values.golangBack.components }}
+    stack: {{ .Values.golangBack.stack }}
 spec:
   type: ClusterIP
   ports:

@@ -5,6 +5,7 @@ metadata:
   namespace: {{ .Values.namespace }}
   labels:
     app: {{ .Values.nodejsBack.components }}
+    stack: {{ .Values.nodejsBack.stack }}
 spec:
   type: ClusterIP
   ports:
