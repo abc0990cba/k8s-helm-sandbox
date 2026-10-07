@@ -10,14 +10,14 @@ A polyglot full-stack application (React 19 + Mantine SPA → KrakenD API gatewa
 
 then open [http://grogu.test/](http://grogu.test/), log in with the pre-seeded user **demo / demo**, create a short link on the **Links** page and press *click* — watch the event cross nodejs → Redis stream → Rust consumer → DuckDB and light up the charts. The whole video narrative lives in [docs/DEMO-SCRIPT.md](./docs/DEMO-SCRIPT.md).
 
-**New here?** Start with the visual tour — [docs/TOUR.md](./docs/TOUR.md) shows every surface (the app's api/notes/jobs views, Keycloak, Prometheus, Grafana, ArgoCD) with live screenshots and what to try on each.
+**New here?** Start with the reading map — [docs/INDEX.md](./docs/INDEX.md) tells you what to read in what order for your role. The short version: the visual tour ([docs/TOUR.md](./docs/TOUR.md)), the flows ([docs/FLOWS.md](./docs/FLOWS.md)), then the deep dives.
 
 ### Architecture
 
 ![app](./diagram-as-code/fullstack_app.png)
 ![app in k8s](./diagram-as-code/fullstack_app_in_k8s_cluster.png)
 
-Detailed, always-current description: [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
+Detailed, always-current description: [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md); request-level sequence diagrams: [docs/FLOWS.md](./docs/FLOWS.md). (The two images above are v1 topology renders — the current topology is drawn as mermaid in ARCHITECTURE.md.)
 Guide for LLM/coding agents working with this repo: [AGENTS.md](./AGENTS.md).
 One command per environment — `./start` (Minikube on this Mac), `./start orbstack` (Ubuntu machine in OrbStack on this Mac — full rehearsal of the remote pipeline), `./start lan` (VirtualBox VM on the Wi-Fi), `./start vps` (VPS + TLS), the remote three deployed via Ansible + ArgoCD: [docs/RUN.md](./docs/RUN.md) is the launch guide for all of them, with the deep dives in [docs/DEPLOY-VPS-ARGOCD.md](./docs/DEPLOY-VPS-ARGOCD.md), [docs/DEPLOY-LAN-VIRTUALBOX.md](./docs/DEPLOY-LAN-VIRTUALBOX.md), [gitops/README.md](./gitops/README.md). Новичкам: [docs/HOW-DEPLOY-WORKS-RU.md](./docs/HOW-DEPLOY-WORKS-RU.md) — пошаговый разбор на русском, как изменение кода (например, кнопки) доезжает через Helm и ArgoCD до кластера.
 
@@ -56,7 +56,7 @@ The script is **idempotent** — run it again at any time and it repairs/resumes
 5. installs/upgrades the Helm release `ap` from `./helm-chart` with the SOPS-encrypted `secrets.yaml`;
 6. waits until every pod is Ready;
 7. starts `sudo minikube tunnel` in the background (asks for the sudo password);
-8. runs end-to-end smoke tests through the ingress: front page, gateway health, public APIs of both backends, and the **private** APIs using a real JWT obtained for the seeded user.
+8. runs end-to-end smoke tests through the ingress: front page, gateway health, public APIs of the backends, the links→analytics pipeline (a click crossing nodejs → redis → rust/DuckDB), and the **private** APIs using a real JWT obtained for the seeded user.
 
 ### What is pre-seeded (no manual setup needed)
 
