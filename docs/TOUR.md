@@ -73,7 +73,7 @@ private route and write.
 Realm `demorealm`, client `reactclient`, seeded user demo/demo. The SPA uses
 keycloak-js with PKCE and refreshes the token 60s before expiry.
 
-![Keycloak](screenshots/06-keycloak.png)
+
 
 ## 7. Prometheus — http://prom.test/
 
@@ -90,12 +90,12 @@ and **Click analytics pipeline** (ingest rate, stream errors, rust pods).
 
 ![Grafana](screenshots/08-grafana.png)
 
-## 9. ArgoCD — in-cluster
+## 9. ArgoCD — in-cluster (no screenshot — add `argocd.test` to /etc/hosts next to grogu.test, or `k3s kubectl -n argocd port-forward svc/argocd-server 8080:80`)
 
 The `ap` application syncing the chart from git — the same chart the local
 `./start` uses. This is the GitOps proof: what runs equals what is committed.
 
-![ArgoCD](screenshots/09-argocd.png)
+
 
 ## Sequence diagrams
 
