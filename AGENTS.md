@@ -48,7 +48,8 @@ golang-back/                 Go (go.mod 1.25) + gin, multi-stage distroless nonr
 rust-back/                   Rust (axum 0.8 + tokio), distroless cc nonroot: consumes the `clicks` stream (consumer group `analytics`, XACK-after-commit, entry-id dedupe) into an embedded DuckDB file on a PVC; serves /analytics/{summary,top,links/:code}; cargo test + clippy -D warnings
 react-front/                 React 19 + TS + Vite 8 + Mantine 9, non-root image (USER node, /app chowned): typed api layer (src/api/client.ts) + Playground/Notes/Jobs/Links/Token views (TanStack Query, router); vitest+testing-library
 scripts/                     start/stop/status plumbing + orbstack mode/hosts/reset helpers
-diagram-as-code/  ans/  microk8s/   docs assets / UNRELATED scratch dirs (ignore ans/, microk8s/)
+diagram-as-code/             versioned architecture diagrams (v2 scripts + PNGs; v1 in archive/) — python3 *.py regenerates
+ans/  microk8s/               UNRELATED scratch dirs (ignore)
 ```
 
 ## Components (namespace `default`)
